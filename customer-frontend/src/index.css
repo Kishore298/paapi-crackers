@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* Global Styles */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #18181B;
+  background-color: #FAFAFA;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c4c4c4;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+/* Quantity control buttons */
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 hover:bg-primary-dark hover:shadow-md active:scale-[0.98];
+  }
+  .btn-outline {
+    @apply border-2 border-primary text-primary px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 hover:bg-primary hover:text-white;
+  }
+  .btn-success {
+    @apply bg-success text-white px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.98];
+  }
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-border;
+  }
+  .category-label {
+    @apply bg-primary-lighter text-primary font-semibold px-4 py-2 rounded-xl;
+  }
+  .price-green {
+    @apply text-success font-bold;
+  }
+  .price-discount {
+    @apply text-discount font-semibold;
+  }
+  .qty-btn {
+    @apply w-8 h-8 flex items-center justify-center rounded-lg bg-primary text-white font-bold text-sm transition-all duration-150 hover:bg-primary-dark active:scale-90;
+  }
+  .qty-display {
+    @apply w-8 h-8 flex items-center justify-center font-semibold text-sm text-text-primary;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-processing {
+    @apply badge bg-blue-100 text-blue-700;
+  }
+  .badge-dispatched {
+    @apply badge bg-green-100 text-green-700;
+  }
+  .badge-cancelled {
+    @apply badge bg-red-100 text-red-700;
+  }
+  .badge-pending {
+    @apply badge bg-yellow-100 text-yellow-700;
+  }
+  .badge-completed {
+    @apply badge bg-green-100 text-green-700;
+  }
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-border bg-white text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all duration-200;
+  }
+}
+
+/* Image lightbox overlay */
+.lightbox-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.lightbox-image {
+  animation: scaleIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Toolbar sticky */
+.toolbar-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+/* Bottom sheet for mobile filters */
+.bottom-sheet-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.bottom-sheet {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* Floating cart animation */
+.floating-cart {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
