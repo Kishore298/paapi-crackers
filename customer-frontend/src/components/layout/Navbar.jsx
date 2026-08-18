@@ -13,7 +13,7 @@ const Navbar = ({ settings }) => {
   const { unreadCount } = useNotificationStore();
 
   const businessName = settings?.business?.name || 'Paapi Crackers';
-  const logo = settings?.business?.logo?.url;
+  const logo = settings?.business?.logo?.url || '/paapi-logo.png';
 
   const navLinks = [
     { to: '/', label: 'Shop', icon: Store },
@@ -30,13 +30,7 @@ const Navbar = ({ settings }) => {
           <div className="flex items-center justify-between h-16">
             {/* Left - Logo + Business Name */}
             <Link to="/" className="flex items-center gap-3 flex-shrink-0">
-              {logo ? (
-                <img src={logo} alt={businessName} className="h-9 w-9 rounded-lg object-cover" />
-              ) : (
-                <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">{businessName.charAt(0)}</span>
-                </div>
-              )}
+              <img src={logo} alt={businessName} className="h-14 object-contain" />
               <span className="text-lg font-bold text-text-primary hidden sm:block">{businessName}</span>
             </Link>
 

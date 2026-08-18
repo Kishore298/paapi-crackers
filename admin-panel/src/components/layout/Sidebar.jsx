@@ -58,8 +58,8 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
   const SidebarContent = (
     <div className="flex flex-col h-full bg-background-sidebar text-white">
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-gray-800">
-        <span className="text-xl font-bold text-white tracking-wide">PAAPI<span className="text-primary-light">ADMIN</span></span>
+      <div className="h-24 py-4 flex items-center justify-between px-6 border-b border-gray-800">
+        <img src="/paapi-logo.png" alt="Paapi Admin" className="h-16 object-contain" />
         <button className="lg:hidden text-gray-400 hover:text-white" onClick={() => setMobileOpen(false)}>
           <X size={20} />
         </button>

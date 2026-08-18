@@ -41,9 +41,7 @@ const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mb-6">
-            <Lock size={32} className="text-white" />
-          </div>
+          <img src="/paapi-logo.png" alt="Paapi Crackers Logo" className="mx-auto h-32 object-contain mb-6" />
           <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
             Admin Portal
           </h2>

@@ -12,7 +12,7 @@ const Footer = ({ settings }) => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="md:col-span-1">
-            <h3 className="text-lg font-bold text-text-primary mb-2">{business.name || 'Paapi Crackers'}</h3>
+            <img src={business.logo?.url || '/paapi-logo.png'} alt={business.name || 'Paapi Crackers'} className="h-20 object-contain mb-4" />
             <p className="text-sm text-text-secondary leading-relaxed">
               Your one-stop shop for premium quality crackers and fireworks.
             </p>

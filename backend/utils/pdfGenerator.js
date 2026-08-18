@@ -1,5 +1,8 @@
 const PDFDocument = require('pdfkit');
 
+const fs = require('fs');
+const path = require('path');
+
 /**
  * PDF Generator using PDFKit
  * Generates invoice PDFs with business/customer details, items, and GST breakdown
@@ -17,6 +20,12 @@ const generateInvoicePDF = (invoice) => {
       const isGST = invoice.type === 'gst';
       const biz = invoice.businessSnapshot || {};
       const cust = invoice.customerSnapshot || {};
+
+      // Logo
+      const logoPath = path.join(__dirname, '../public/paapi-logo.png');
+      if (fs.existsSync(logoPath)) {
+        doc.image(logoPath, 40, 20, { width: 100 });
+      }
 
       // Header
       doc.fontSize(18).font('Helvetica-Bold').text(biz.name || 'Business', { align: 'center' });
