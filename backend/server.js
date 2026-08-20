@@ -46,8 +46,12 @@ initFirebase();
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
   origin: [
-    process.env.CUSTOMER_FRONTEND_URL || 'http://localhost:3000',
-    process.env.ADMIN_FRONTEND_URL || 'http://localhost:3001',
+    "https://paapicrackers.com",
+    "https://www.paapicrackers.com",
+    "https://admin.paapicrackers.com",
+    "https://www.admin.paapicrackers.com",
+    "http://localhost:3000",
+    "http://localhost:3001"
   ],
   credentials: true,
 }));
