@@ -85,13 +85,55 @@ const SettingsPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">Min Order Amount (₹)</label>
-                <input type="number" value={settings.orders.minOrderAmount} onChange={e => handleChange('orders', 'minOrderAmount', Number(e.target.value))} className="input-field" />
+                <input type="number" value={settings.orders.minOrderAmount ?? ''} onChange={e => handleChange('orders', 'minOrderAmount', e.target.value === '' ? '' : Number(e.target.value))} className="input-field" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">Max Order Amount (₹)</label>
-                <input type="number" value={settings.orders.maxOrderAmount} onChange={e => handleChange('orders', 'maxOrderAmount', Number(e.target.value))} className="input-field" />
+                <input type="number" value={settings.orders.maxOrderAmount ?? ''} onChange={e => handleChange('orders', 'maxOrderAmount', e.target.value === '' ? '' : Number(e.target.value))} className="input-field" />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Pricing Configuration */}
+        <div className="card p-6 space-y-6">
+          <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 border-b border-border pb-3">
+            <Percent size={20} className="text-primary"/> Pricing & Discounts
+          </h2>
+          
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Global Discount (%)</label>
+            <p className="text-xs text-text-secondary mb-3">This discount percentage will be applied automatically to all products during checkout.</p>
+            <input 
+              type="number" 
+              min="0" 
+              max="100" 
+              value={settings.pricing?.globalDiscount ?? 0} 
+              onChange={e => handleChange('pricing', 'globalDiscount', e.target.value === '' ? 0 : Number(e.target.value))} 
+              className="input-field" 
+              placeholder="e.g. 50"
+            />
+          </div>
+        </div>
+
+        {/* GST Configuration */}
+        <div className="card p-6 space-y-6">
+          <h2 className="text-lg font-bold text-text-primary flex items-center gap-2 border-b border-border pb-3">
+            <Percent size={20} className="text-primary"/> Pricing & Discounts
+          </h2>
+          
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Global Discount Percentage (%)</label>
+            <p className="text-xs text-text-secondary mb-2">This discount is automatically applied to all products' MRP to calculate the discount price.</p>
+            <input 
+              type="number" 
+              step="0.01" 
+              min="0"
+              max="100"
+              value={settings.pricing?.globalDiscount ?? ''} 
+              onChange={e => handleChange('pricing', 'globalDiscount', e.target.value === '' ? '' : Number(e.target.value))} 
+              className="input-field max-w-xs font-bold text-lg" 
+            />
           </div>
         </div>
 
@@ -107,8 +149,8 @@ const SettingsPage = () => {
             <input 
               type="number" 
               step="0.01" 
-              value={settings.gst.defaultRate} 
-              onChange={e => handleChange('gst', 'defaultRate', Number(e.target.value))} 
+              value={settings.gst.defaultRate ?? ''} 
+              onChange={e => handleChange('gst', 'defaultRate', e.target.value === '' ? '' : Number(e.target.value))} 
               className="input-field max-w-xs font-bold text-lg" 
             />
           </div>
@@ -131,11 +173,11 @@ const SettingsPage = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1">Standard Delivery Charge (₹)</label>
-              <input type="number" value={settings.delivery.deliveryCharge} onChange={e => handleChange('delivery', 'deliveryCharge', Number(e.target.value))} className="input-field" />
+              <input type="number" value={settings.delivery.deliveryCharge ?? ''} onChange={e => handleChange('delivery', 'deliveryCharge', e.target.value === '' ? '' : Number(e.target.value))} className="input-field" />
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1">Free Delivery Threshold (₹)</label>
-              <input type="number" value={settings.delivery.freeDeliveryThreshold} onChange={e => handleChange('delivery', 'freeDeliveryThreshold', Number(e.target.value))} className="input-field" placeholder="0 = disabled" />
+              <input type="number" value={settings.delivery.freeDeliveryThreshold ?? ''} onChange={e => handleChange('delivery', 'freeDeliveryThreshold', e.target.value === '' ? '' : Number(e.target.value))} className="input-field" placeholder="0 = disabled" />
             </div>
           </div>
         </div>

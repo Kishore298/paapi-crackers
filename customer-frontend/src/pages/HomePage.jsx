@@ -58,7 +58,7 @@ const HomePage = ({ settings }) => {
     if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.sku.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     
     // Price range
-    const price = p.discountPrice && p.discountPrice < p.sellingPrice ? p.discountPrice : p.sellingPrice;
+    const price = p.discountPrice && p.discountPrice < p.mrp ? p.discountPrice : p.mrp;
     if (filters.priceRange === '0-100' && price > 100) return false;
     if (filters.priceRange === '100-500' && (price <= 100 || price > 500)) return false;
     if (filters.priceRange === '500-1000' && (price <= 500 || price > 1000)) return false;

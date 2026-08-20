@@ -9,7 +9,7 @@ exports.getCombos = async (req, res, next) => {
     if (req.query.active !== undefined) filter.active = req.query.active === 'true';
 
     const combos = await Combo.find(filter)
-      .populate('products.product', 'name sku sellingPrice stock image packQuantity')
+      .populate('products.product', 'name sku mrp stock image')
       .sort({ createdAt: -1 });
 
     // Calculate availability for each combo from component stock
@@ -40,7 +40,7 @@ exports.getCombos = async (req, res, next) => {
 exports.getCombo = async (req, res, next) => {
   try {
     const combo = await Combo.findById(req.params.id)
-      .populate('products.product', 'name sku sellingPrice stock image packQuantity');
+      .populate('products.product', 'name sku mrp stock image');
 
     if (!combo) {
       return res.status(404).json({ success: false, message: 'Combo not found.' });
@@ -98,7 +98,7 @@ exports.createCombo = async (req, res, next) => {
       active: active !== 'false',
     });
 
-    await combo.populate('products.product', 'name sku sellingPrice stock image packQuantity');
+    await combo.populate('products.product', 'name sku mrp stock image');
 
     res.status(201).json({ success: true, data: combo });
   } catch (error) {
@@ -136,7 +136,7 @@ exports.updateCombo = async (req, res, next) => {
     }
 
     await combo.save();
-    await combo.populate('products.product', 'name sku sellingPrice stock image packQuantity');
+    await combo.populate('products.product', 'name sku mrp stock image');
 
     res.json({ success: true, data: combo });
   } catch (error) {

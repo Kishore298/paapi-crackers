@@ -141,7 +141,14 @@ const OrderDetailsPage = () => {
                 )}
               </div>
               <div className="text-right">
-                <p className="font-bold text-text-primary">{formatCurrency(item.price)} <span className="text-xs text-text-secondary font-normal">x{item.quantity}</span></p>
+                {item.discount > 0 && item.price < (item.price + (item.discount/item.quantity)) ? (
+                  <div className="flex flex-col items-end">
+                    <p className="font-bold text-text-primary">{formatCurrency(item.price)} <span className="text-xs text-text-secondary font-normal">x{item.quantity}</span></p>
+                    <span className="text-[10px] text-text-secondary line-through">{formatCurrency(item.price + (item.discount/item.quantity))}</span>
+                  </div>
+                ) : (
+                  <p className="font-bold text-text-primary">{formatCurrency(item.price)} <span className="text-xs text-text-secondary font-normal">x{item.quantity}</span></p>
+                )}
                 <p className="text-sm font-bold text-primary mt-1">{formatCurrency(item.total)}</p>
               </div>
             </div>

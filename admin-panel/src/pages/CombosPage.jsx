@@ -234,7 +234,7 @@ const CombosPage = () => {
                     <input type="number" min="0" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="input-field" required />
                     <p className="text-xs text-text-secondary mt-1">Total value of selected products: {formatCurrency(comboProducts.reduce((sum, cp) => {
                       const p = products.find(p => p._id === cp.product);
-                      return sum + (p ? (p.discountPrice || p.sellingPrice) * cp.quantity : 0);
+                      return sum + (p ? (p.discountPrice || p.mrp) * cp.quantity : 0);
                     }, 0))}</p>
                   </div>
                   <div>
@@ -259,7 +259,7 @@ const CombosPage = () => {
                     <select id="productSelect" className="input-field flex-1" defaultValue="">
                       <option value="" disabled>Select a product to add...</option>
                       {products.map(p => (
-                        <option key={p._id} value={p._id}>{p.name} - {formatCurrency(p.discountPrice || p.sellingPrice)}</option>
+                        <option key={p._id} value={p._id}>{p.name} - {formatCurrency(p.discountPrice || p.mrp)}</option>
                       ))}
                     </select>
                     <button type="button" onClick={() => {
@@ -280,7 +280,7 @@ const CombosPage = () => {
                           <div key={idx} className="bg-white p-3 rounded-lg shadow-sm border border-border flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm truncate">{product.name}</p>
-                              <p className="text-xs text-text-secondary">{formatCurrency(product.discountPrice || product.sellingPrice)} each</p>
+                              <p className="text-xs text-text-secondary">{formatCurrency(product.discountPrice || product.mrp)} each</p>
                             </div>
                             <div className="flex items-center gap-3">
                               <input 

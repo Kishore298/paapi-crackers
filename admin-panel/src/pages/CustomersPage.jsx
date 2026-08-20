@@ -88,7 +88,7 @@ const CustomersPage = () => {
                         {customer.totalOrders}
                       </span>
                     </td>
-                    <td className="font-bold text-primary">{formatCurrency(customer.totalSpent)}</td>
+                    <td className="font-bold text-primary">{formatCurrency(customer.totalSpending || 0)}</td>
                     <td>{formatDate(customer.createdAt)}</td>
                   </tr>
                 ))}

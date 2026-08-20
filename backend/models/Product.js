@@ -23,18 +23,8 @@ const productSchema = new mongoose.Schema(
     },
     mrp: {
       type: Number,
-      required: [true, 'MRP is required'],
       min: 0,
-    },
-    sellingPrice: {
-      type: Number,
-      min: 0,
-      required: [true, 'Selling price is required']
-    },
-    packQuantity: {
-      type: String,
-      required: [true, 'Pack quantity is required'],
-      trim: true,
+      required: [true, 'MRP is required']
     },
     image: {
       url: { type: String },

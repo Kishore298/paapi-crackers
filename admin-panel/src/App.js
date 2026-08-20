@@ -14,11 +14,11 @@ import CategoriesPage from './pages/CategoriesPage';
 import CombosPage from './pages/CombosPage';
 import OrdersPage from './pages/OrdersPage';
 import POSPage from './pages/POSPage';
-import InvoicesPage from './pages/InvoicesPage';
 import CustomersPage from './pages/CustomersPage';
 import StockPage from './pages/StockPage';
 import ReportsPage from './pages/ReportsPage';
 import BannersPage from './pages/BannersPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -35,7 +35,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 function App() {
   return (
     <Router>
-      <Toaster position="top-right" />
+      <Toaster position="top-right" containerStyle={{ zIndex: 99999 }} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         
@@ -48,14 +48,14 @@ function App() {
         <Route path="/stock" element={<ProtectedRoute allowedRoles={['admin', 'inventoryManager']}><StockPage /></ProtectedRoute>} />
         
         {/* Order & Sales */}
-        <Route path="/orders" element={<ProtectedRoute allowedRoles={['admin', 'orderManager']}><OrdersPage /></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute allowedRoles={['admin', 'orderManager', 'posOperator']}><OrdersPage /></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute allowedRoles={['admin', 'posOperator']}><POSPage /></ProtectedRoute>} />
-        <Route path="/invoices" element={<ProtectedRoute allowedRoles={['admin', 'orderManager', 'posOperator']}><InvoicesPage /></ProtectedRoute>} />
-        <Route path="/customers" element={<ProtectedRoute allowedRoles={['admin', 'orderManager']}><CustomersPage /></ProtectedRoute>} />
+        <Route path="/customers" element={<ProtectedRoute allowedRoles={['admin', 'orderManager', 'posOperator']}><CustomersPage /></ProtectedRoute>} />
         
         {/* Reports & Settings */}
         <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin']}><ReportsPage /></ProtectedRoute>} />
         <Route path="/banners" element={<ProtectedRoute allowedRoles={['admin']}><BannersPage /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin']}><SettingsPage /></ProtectedRoute>} />
         
         <Route path="/unauthorized" element={
           <div className="min-h-screen flex items-center justify-center bg-gray-50">

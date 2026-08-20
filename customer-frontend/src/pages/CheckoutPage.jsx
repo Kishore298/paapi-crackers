@@ -9,7 +9,8 @@ import { formatCurrency } from '../utils/formatCurrency';
 
 const CheckoutPage = ({ settings }) => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart } = useCartStore();
+  const { items, clearCart } = useCartStore();
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const { customer, setCustomer } = useAuthStore();
 
   const [loading, setLoading] = useState(false);
@@ -36,8 +37,10 @@ const CheckoutPage = ({ settings }) => {
   useEffect(() => {
     if (items.length === 0) {
       navigate('/cart');
+    } else if (!customer) {
+      navigate('/login?redirect=/checkout');
     }
-  }, [items, navigate]);
+  }, [items, customer, navigate]);
 
   // Pre-fill last address if customer is known
   useEffect(() => {
@@ -246,38 +249,51 @@ const CheckoutPage = ({ settings }) => {
 
             {activeStep === 3 && (
               <div className="p-6">
-                <div className="space-y-3 mb-6">
-                  {settings?.payments?.methods?.cash && (
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'cash' ? 'border-primary bg-primary-lighter/30' : 'border-border hover:bg-gray-50'}`}>
-                      <input type="radio" name="paymentMethod" value="cash" checked={formData.paymentMethod === 'cash'} onChange={handleChange} className="w-5 h-5 text-primary" />
-                      <div className="ml-3">
-                        <span className="block font-medium text-text-primary">Cash on Delivery (COD)</span>
-                        <span className="text-xs text-text-secondary">Pay with cash upon delivery</span>
+                <div className="border border-primary/20 bg-primary-lighter/10 rounded-2xl p-5 mb-6">
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-text-primary text-lg mb-2">Pay via UPI</h3>
+                      <p className="text-text-secondary text-sm mb-4">Please complete your payment using any of the UPI apps below to the following number.</p>
+                      
+                      <div className="bg-white rounded-xl border border-border p-4 mb-4 shadow-sm">
+                        <p className="text-xs text-text-secondary uppercase tracking-wider font-bold mb-1">Official Payment Number</p>
+                        <div className="text-3xl font-black text-text-primary tracking-wider mb-4">
+                          {settings?.business?.phone || settings?.website?.contactInfo?.whatsapp || '+91 00000 00000'}
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center min-w-[90px] h-12">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="Google Pay" className="h-5" />
+                          </div>
+                          <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center min-w-[90px] h-12">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/7/71/PhonePe_Logo.svg" alt="PhonePe" className="h-6" />
+                          </div>
+                          <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center min-w-[90px] h-12">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/24/Paytm_Logo_%28standalone%29.svg" alt="Paytm" className="h-4" />
+                          </div>
+                        </div>
                       </div>
-                    </label>
-                  )}
-                  {settings?.payments?.methods?.upi && (
-                    <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all ${formData.paymentMethod === 'upi' ? 'border-primary bg-primary-lighter/30' : 'border-border hover:bg-gray-50'}`}>
-                      <input type="radio" name="paymentMethod" value="upi" checked={formData.paymentMethod === 'upi'} onChange={handleChange} className="w-5 h-5 text-primary" />
-                      <div className="ml-3">
-                        <span className="block font-medium text-text-primary">UPI / Bank Transfer</span>
-                        <span className="text-xs text-text-secondary">Pay securely via UPI or direct bank transfer</span>
+
+                      <div className="bg-yellow-50/80 border border-yellow-200 text-yellow-800 p-4 rounded-xl text-sm flex gap-3 items-start">
+                        <AlertCircle size={20} className="shrink-0 mt-0.5 text-yellow-600" />
+                        <div>
+                          <p className="font-bold mb-1 text-yellow-900">Action Required!</p>
+                          <p>After completing the payment, please share the success screenshot to our WhatsApp number <strong className="font-bold underline">{settings?.website?.contactInfo?.whatsapp || settings?.business?.phone || '+91 00000 00000'}</strong> so we can confirm and process your order immediately.</p>
+                        </div>
                       </div>
-                    </label>
-                  )}
-                  {!settings?.payments?.methods?.cash && !settings?.payments?.methods?.upi && (
-                     <div className="p-4 bg-yellow-50 text-yellow-700 rounded-xl text-sm flex items-center gap-2">
-                       <AlertCircle size={16}/> No payment methods configured by administrator.
-                     </div>
-                  )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
                   <button onClick={() => setActiveStep(2)} className="btn-outline flex-1 md:flex-none">Back</button>
                   <button 
-                    onClick={handlePlaceOrder} 
-                    disabled={loading || (!settings?.payments?.methods?.cash && !settings?.payments?.methods?.upi)} 
-                    className="btn-success flex-1"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, paymentMethod: 'upi' }));
+                      handlePlaceOrder();
+                    }} 
+                    disabled={loading} 
+                    className="btn-success flex-1 md:flex-none flex items-center justify-center gap-2"
                   >
                     {loading ? 'Processing...' : `Place Order - ${formatCurrency(grandTotal)}`}
                   </button>

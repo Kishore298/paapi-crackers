@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Download, Calendar, IndianRupee, ShoppingBag, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
@@ -6,9 +7,15 @@ import { formatCurrency, formatNumber, formatDate } from '../utils/format';
 import { utils, writeFile } from 'xlsx';
 
 const ReportsPage = () => {
+  const [searchParams] = useSearchParams();
+  const periodParam = searchParams.get('period');
+
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState(() => {
+    if (periodParam === 'today') {
+      return new Date().toISOString().split('T')[0];
+    }
     const d = new Date();
     d.setDate(d.getDate() - 30);
     return d.toISOString().split('T')[0];

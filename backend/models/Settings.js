@@ -86,6 +86,11 @@ const settingsSchema = new mongoose.Schema(
         of: Number,
         default: {},
       },
+      isPriceInclusive: { type: Boolean, default: false },
+    },
+
+    pricing: {
+      globalDiscount: { type: Number, default: 0, min: 0, max: 100 },
     },
 
     delivery: {

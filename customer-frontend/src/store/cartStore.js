@@ -42,11 +42,11 @@ const useCartStore = create(
                 name: product.name,
                 image: product.image?.url,
                 sku: product.sku,
-                sellingPrice: product.sellingPrice,
+                mrp: product.mrp,
                 discountPrice: product.discountPrice,
-                price: product.discountPrice && product.discountPrice < product.sellingPrice
+                price: product.discountPrice && product.discountPrice < product.mrp
                   ? product.discountPrice
-                  : product.sellingPrice,
+                  : product.mrp,
                 packQuantity: product.packQuantity,
                 quantity: 1,
                 maxStock: product.stock || 0,
@@ -101,21 +101,59 @@ const useCartStore = create(
 
       clearCart: () => set({ items: [] }),
 
-      get itemCount() {
-        return get().items.reduce((sum, item) => sum + item.quantity, 0);
-      },
+      setItemQuantity: (id, quantity, isCombo = false, product = null) => {
+        const items = get().items;
+        const idx = items.findIndex((item) =>
+          isCombo ? item.isCombo && item.comboId === id : !item.isCombo && item.productId === id
+        );
 
-      get subtotal() {
-        return get().items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      },
-
-      get totalDiscount() {
-        return get().items.reduce((sum, item) => {
-          if (!item.isCombo && item.discountPrice && item.discountPrice < item.sellingPrice) {
-            return sum + (item.sellingPrice - item.discountPrice) * item.quantity;
+        if (quantity <= 0) {
+          if (idx > -1) {
+            set({ items: items.filter((_, i) => i !== idx) });
           }
-          return sum;
-        }, 0);
+          return;
+        }
+
+        if (idx > -1) {
+          const updated = [...items];
+          const maxQty = updated[idx].maxStock;
+          updated[idx] = { ...updated[idx], quantity: Math.min(quantity, maxQty) };
+          set({ items: updated });
+        } else if (product) {
+          const maxQty = isCombo ? (product.availableStock || 0) : (product.stock || 0);
+          const finalQty = Math.min(quantity, maxQty);
+          
+          if (finalQty > 0) {
+            const newItem = isCombo
+              ? {
+                  comboId: product._id,
+                  isCombo: true,
+                  name: product.name,
+                  image: product.image?.url,
+                  price: product.price,
+                  savings: product.savings,
+                  products: product.products,
+                  quantity: finalQty,
+                  maxStock: product.availableStock || 0,
+                }
+              : {
+                  productId: product._id,
+                  isCombo: false,
+                  name: product.name,
+                  image: product.image?.url,
+                  sku: product.sku,
+                  mrp: product.mrp,
+                  discountPrice: product.discountPrice,
+                  price: product.discountPrice && product.discountPrice < product.mrp
+                    ? product.discountPrice
+                    : product.mrp,
+                  packQuantity: product.packQuantity,
+                  quantity: finalQty,
+                  maxStock: product.stock || 0,
+                };
+            set({ items: [...items, newItem] });
+          }
+        }
       },
     }),
     {

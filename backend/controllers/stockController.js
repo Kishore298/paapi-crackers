@@ -2,6 +2,33 @@ const Product = require('../models/Product');
 const StockLedger = require('../models/StockLedger');
 const stockService = require('../services/stockService');
 
+// PUT /api/stock/bulk-update
+exports.bulkUpdateStock = async (req, res, next) => {
+  try {
+    const { updates } = req.body;
+    if (!updates || !Array.isArray(updates)) {
+      return res.status(400).json({ success: false, message: 'Updates array is required.' });
+    }
+
+    const results = [];
+    for (const update of updates) {
+      if (update.stock !== undefined && update.stock >= 0) {
+        const product = await stockService.adjustStock(
+          update.productId, 
+          parseInt(update.stock), 
+          req.user._id, 
+          update.reason || 'Bulk update'
+        );
+        results.push(product);
+      }
+    }
+
+    res.json({ success: true, data: results });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /api/stock (sorted by low stock first)
 exports.getStock = async (req, res, next) => {
   try {

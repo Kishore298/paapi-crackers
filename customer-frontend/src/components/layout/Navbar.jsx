@@ -1,23 +1,43 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, Bell, Store } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Menu, Bell, Store, User, LogOut, Package } from 'lucide-react';
 import useCartStore from '../../store/cartStore';
 import useNotificationStore from '../../store/notificationStore';
+import useAuthStore from '../../store/authStore';
 import MobileMenu from './MobileMenu';
 
 const Navbar = ({ settings }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const items = useCartStore((s) => s.items);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const { unreadCount } = useNotificationStore();
+  const { customer, clearCustomer } = useAuthStore();
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    clearCustomer();
+    setProfileOpen(false);
+    navigate('/');
+  };
 
   const businessName = settings?.business?.name || 'Paapi Crackers';
   const logo = settings?.business?.logo?.url || '/paapi-logo.png';
 
   const navLinks = [
     { to: '/', label: 'Shop', icon: Store },
-    { to: '/about', label: 'About Us' },
     { to: '/contact', label: 'Contact Us' },
   ];
 
@@ -76,6 +96,46 @@ const Navbar = ({ settings }) => {
                   </span>
                 )}
               </Link>
+
+              {customer ? (
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setProfileOpen(!profileOpen)}
+                    className="relative p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-all"
+                  >
+                    <User size={20} />
+                  </button>
+
+                  {profileOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-border py-2 z-50">
+                      <div className="px-4 py-2 border-b border-border">
+                        <p className="text-sm font-bold text-text-primary truncate">{customer.name}</p>
+                        <p className="text-xs text-text-secondary truncate">{customer.phone}</p>
+                      </div>
+                      <Link
+                        to="/my-orders"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-colors"
+                      >
+                        <Package size={16} /> My Orders
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-discount hover:bg-red-50 transition-colors text-left"
+                      >
+                        <LogOut size={16} /> Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  to="/login"
+                  className="relative p-2 rounded-xl text-text-secondary hover:text-text-primary hover:bg-gray-50 transition-all"
+                >
+                  <User size={20} />
+                </Link>
+              )}
 
               <button
                 onClick={() => setMobileOpen(true)}

@@ -2,13 +2,23 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ArrowRight, Trash2, ArrowLeft, X } from 'lucide-react';
 import useCartStore from '../store/cartStore';
+import useAuthStore from '../store/authStore';
 import QuantityControl from '../components/common/QuantityControl';
 import { formatCurrency } from '../utils/formatCurrency';
 
 const CartPage = ({ settings }) => {
   const navigate = useNavigate();
-  const { items, clearCart, subtotal, totalDiscount, removeItem, incrementItem, decrementItem } = useCartStore();
+  const { customer } = useAuthStore();
+  const { items, clearCart, removeItem, incrementItem, decrementItem } = useCartStore();
   const [isClearing, setIsClearing] = useState(false);
+
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalDiscount = items.reduce((sum, item) => {
+    if (!item.isCombo && item.discountPrice && item.discountPrice < item.mrp) {
+      return sum + (item.mrp - item.discountPrice) * item.quantity;
+    }
+    return sum;
+  }, 0);
 
   const deliveryCharge = settings?.delivery?.deliveryCharge || 0;
   const freeDeliveryThreshold = settings?.delivery?.freeDeliveryThreshold || 0;
@@ -35,7 +45,12 @@ const CartPage = ({ settings }) => {
       alert(`Maximum order amount is ${formatCurrency(maxOrderAmount)}`);
       return;
     }
-    navigate('/checkout');
+    
+    if (!customer) {
+      navigate('/login?redirect=/checkout');
+    } else {
+      navigate('/checkout');
+    }
   };
 
   if (items.length === 0) {
@@ -97,15 +112,15 @@ const CartPage = ({ settings }) => {
                 {item.isCombo ? (
                   <span className="badge bg-primary-lighter text-primary text-[10px] mb-2">COMBO</span>
                 ) : (
-                  <p className="text-xs text-text-secondary mb-2">{item.sku} · Pack: {item.packQuantity}</p>
+                  <p className="text-xs text-text-secondary mb-2">{item.sku}</p>
                 )}
 
                 <div className="flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-2">
                     <span className="price-green font-bold text-lg">{formatCurrency(item.price)}</span>
-                    {!item.isCombo && item.discountPrice && item.discountPrice < item.sellingPrice && (
+                    {!item.isCombo && item.discountPrice && item.discountPrice < item.mrp && (
                       <span className="text-xs text-text-secondary line-through">
-                        {formatCurrency(item.sellingPrice)}
+                        {formatCurrency(item.mrp)}
                       </span>
                     )}
                   </div>

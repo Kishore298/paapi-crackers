@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Eye, Truck, PackageCheck, AlertCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
@@ -34,8 +35,10 @@ const OrdersPage = () => {
     try {
       setIsUpdatingStatus(true);
       const { data } = await API.put(`/orders/${orderId}/status`, { status: newStatus });
-      toast.success(`Order marked as ${newStatus}`);
-      setSelectedOrder(data.data);
+      toast.success(`Order status updated to ${newStatus}`);
+      if (selectedOrder && selectedOrder._id === orderId) {
+        setSelectedOrder(data.data);
+      }
       setOrders(orders.map(o => o._id === orderId ? data.data : o));
     } catch (error) {
       toast.error('Failed to update status');
@@ -44,10 +47,23 @@ const OrdersPage = () => {
     }
   };
 
-  const handleGenerateInvoice = async (orderId) => {
+  const handleUpdatePayment = async (orderId, newPaymentStatus) => {
+    try {
+      const { data } = await API.put(`/orders/${orderId}/payment`, { paymentStatus: newPaymentStatus });
+      toast.success(`Payment status updated to ${newPaymentStatus}`);
+      if (selectedOrder && selectedOrder._id === orderId) {
+        setSelectedOrder(data.data);
+      }
+      setOrders(orders.map(o => o._id === orderId ? data.data : o));
+    } catch (error) {
+      toast.error('Failed to update payment status');
+    }
+  };
+
+  const handleGenerateInvoice = async (orderId, type) => {
     try {
       toast.loading('Generating invoice...', { id: 'inv' });
-      await API.post(`/invoices/generate/${orderId}`);
+      await API.post('/invoices/generate', { orderId, type });
       toast.success('Invoice generated!', { id: 'inv' });
       
       // Refresh order to get invoice data
@@ -55,7 +71,41 @@ const OrdersPage = () => {
       setSelectedOrder(data.data);
       setOrders(orders.map(o => o._id === orderId ? data.data : o));
     } catch (error) {
-      toast.error('Failed to generate invoice', { id: 'inv' });
+      console.error(error);
+      const errMsg = error.response?.data?.message || error.message || 'Failed to generate invoice';
+      toast.error(errMsg, { id: 'inv' });
+    }
+  };
+  const handleDownloadInvoice = async (invoiceData) => {
+    try {
+      const invoiceId = typeof invoiceData === 'object' ? invoiceData._id : invoiceData;
+      toast.loading('Downloading PDF...', { id: 'pdf' });
+      const response = await API.get(`/invoices/${invoiceId}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Invoice-${invoiceId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      toast.success('Downloaded!', { id: 'pdf' });
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to download PDF', { id: 'pdf' });
+    }
+  };
+
+  const handleViewInvoice = async (invoiceData) => {
+    try {
+      const invoiceId = typeof invoiceData === 'object' ? invoiceData._id : invoiceData;
+      toast.loading('Opening PDF...', { id: 'pdf' });
+      const response = await API.get(`/invoices/${invoiceId}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      toast.success('Opened!', { id: 'pdf' });
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to open PDF', { id: 'pdf' });
     }
   };
 
@@ -65,16 +115,7 @@ const OrdersPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusBadge = (status) => {
-    const styles = {
-      Pending: 'bg-yellow-100 text-yellow-700 border border-yellow-200',
-      Processing: 'bg-blue-100 text-blue-700 border border-blue-200',
-      Dispatched: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
-      Delivered: 'bg-green-100 text-green-700 border border-green-200',
-      Cancelled: 'bg-red-100 text-red-700 border border-red-200'
-    };
-    return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${styles[status]}`}>{status}</span>;
-  };
+
 
   return (
     <div className="space-y-6">
@@ -136,11 +177,39 @@ const OrdersPage = () => {
                     </td>
                     <td className="font-medium text-text-primary">{formatCurrency(order.grandTotal)}</td>
                     <td>
-                      <span className="uppercase text-xs font-semibold px-2 py-0.5 bg-gray-100 rounded-md">
-                        {order.paymentMethod}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="uppercase text-[10px] font-semibold text-text-secondary">{order.paymentMethod}</span>
+                        <select 
+                          className="text-xs p-1 rounded border border-border bg-white cursor-pointer"
+                          value={order.paymentStatus || 'Pending'}
+                          onChange={(e) => handleUpdatePayment(order._id, e.target.value)}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Failed">Failed</option>
+                        </select>
+                      </div>
                     </td>
-                    <td>{getStatusBadge(order.status)}</td>
+                    <td>
+                      <select
+                        className={`text-xs p-1.5 rounded-full border border-border cursor-pointer font-medium ${
+                          order.status === 'Pending' ? 'bg-orange-50 text-orange-600' :
+                          order.status === 'Processing' ? 'bg-blue-50 text-blue-600' :
+                          order.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
+                          order.status === 'Delivered' ? 'bg-green-50 text-green-600' :
+                          'bg-red-50 text-red-600'
+                        }`}
+                        value={order.status}
+                        onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                        disabled={isUpdatingStatus}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Dispatched">Dispatched</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </td>
                     <td className="text-right">
                       <button onClick={() => setSelectedOrder(order)} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ml-auto">
                         <Eye size={14} /> View
@@ -158,14 +227,31 @@ const OrdersPage = () => {
       </div>
 
       {/* Order Details Modal */}
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 lg:p-8 backdrop-blur-sm">
+      {selectedOrder && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4 lg:p-8 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-5 bg-gray-50 border-b border-border">
               <div>
                 <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
                   Order #{selectedOrder.orderNumber}
-                  {getStatusBadge(selectedOrder.status)}
+                  <select
+                    className={`text-sm p-1.5 rounded-full border border-border cursor-pointer font-medium ${
+                      selectedOrder.status === 'Pending' ? 'bg-orange-50 text-orange-600' :
+                      selectedOrder.status === 'Processing' ? 'bg-blue-50 text-blue-600' :
+                      selectedOrder.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
+                      selectedOrder.status === 'Delivered' ? 'bg-green-50 text-green-600' :
+                      'bg-red-50 text-red-600'
+                    }`}
+                    value={selectedOrder.status}
+                    onChange={(e) => handleUpdateStatus(selectedOrder._id, e.target.value)}
+                    disabled={isUpdatingStatus}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Dispatched">Dispatched</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
                 </h2>
                 <p className="text-sm text-text-secondary mt-1">{formatDateTime(selectedOrder.createdAt)}</p>
               </div>
@@ -192,20 +278,55 @@ const OrdersPage = () => {
                 <div className="card p-5 bg-gray-50/50">
                    <h3 className="font-bold text-text-primary mb-3 text-sm uppercase tracking-wider text-text-secondary">Payment & Invoice</h3>
                    <div className="space-y-2 text-sm">
-                     <p className="flex justify-between"><span className="text-text-secondary">Method:</span> <span className="font-medium uppercase">{selectedOrder.paymentMethod}</span></p>
-                     <p className="flex justify-between"><span className="text-text-secondary">Status:</span> <span className="font-medium">{selectedOrder.paymentStatus}</span></p>
+                     <p className="flex justify-between items-center"><span className="text-text-secondary">Method:</span> <span className="font-medium uppercase">{selectedOrder.paymentMethod}</span></p>
+                     <p className="flex justify-between items-center">
+                       <span className="text-text-secondary">Status:</span> 
+                       <select 
+                         className="text-xs p-1 rounded border border-border bg-white cursor-pointer font-medium"
+                         value={selectedOrder.paymentStatus || 'Pending'}
+                         onChange={(e) => handleUpdatePayment(selectedOrder._id, e.target.value)}
+                       >
+                         <option value="Pending">Pending</option>
+                         <option value="Completed">Completed</option>
+                         <option value="Failed">Failed</option>
+                       </select>
+                     </p>
                      {selectedOrder.gstin && <p className="flex justify-between"><span className="text-text-secondary">GSTIN:</span> <span className="font-medium uppercase">{selectedOrder.gstin}</span></p>}
                    </div>
 
-                   <div className="mt-4 pt-4 border-t border-border">
+                   <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
                      {selectedOrder.invoice ? (
-                       <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/invoices/${selectedOrder.invoice}/pdf`} target="_blank" rel="noopener noreferrer" className="text-primary font-medium text-sm hover:underline flex items-center gap-1">
-                         Download Invoice PDF
-                       </a>
+                       <>
+                         <div className="flex gap-2">
+                           <button onClick={() => handleDownloadInvoice(selectedOrder.invoice)} className="btn-primary flex-1 py-1.5 px-3 text-xs text-center">
+                             Download PDF
+                           </button>
+                           <button onClick={() => handleViewInvoice(selectedOrder.invoice)} className="btn-secondary flex-1 py-1.5 px-3 text-xs text-center">
+                             View PDF
+                           </button>
+                         </div>
+                         <div className="mt-2 text-center">
+                           <p className="text-xs text-text-secondary mb-1">Need a different invoice type?</p>
+                           {selectedOrder.invoice.type === 'normal' ? (
+                             <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'gst')} className="text-primary text-xs hover:underline">
+                               Generate GST Invoice Instead
+                             </button>
+                           ) : (
+                             <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'normal')} className="text-primary text-xs hover:underline">
+                               Generate Standard Invoice Instead
+                             </button>
+                           )}
+                         </div>
+                       </>
                      ) : (
-                       <button onClick={() => handleGenerateInvoice(selectedOrder._id)} className="text-primary font-medium text-sm hover:underline">
-                         Generate Invoice Now
-                       </button>
+                       <>
+                         <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'gst')} className="btn-primary py-1.5 px-3 text-xs w-full text-center">
+                           Generate GST Invoice
+                         </button>
+                         <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'normal')} className="btn-secondary py-1.5 px-3 text-xs w-full text-center">
+                           Generate Standard Invoice
+                         </button>
+                       </>
                      )}
                    </div>
                 </div>
@@ -234,9 +355,18 @@ const OrdersPage = () => {
                               <p className="text-xs text-text-secondary">SKU: {item.productSnapshot.sku} | Pack: {item.productSnapshot.packQuantity}</p>
                             )}
                           </td>
-                          <td className="text-sm">{formatCurrency(item.price)}</td>
-                          <td className="text-sm">{item.quantity}</td>
-                          <td className="text-right font-medium text-sm">{formatCurrency(item.total)}</td>
+                          <td className="py-4 text-sm">
+                            {item.discount > 0 && item.price < (item.price + (item.discount/item.quantity)) ? (
+                              <div className="flex flex-col">
+                                <span className="font-medium text-text-primary">{formatCurrency(item.price)}</span>
+                                <span className="text-xs text-text-secondary line-through">{formatCurrency(item.price + (item.discount/item.quantity))}</span>
+                              </div>
+                            ) : (
+                              <span className="font-medium text-text-primary">{formatCurrency(item.price)}</span>
+                            )}
+                          </td>
+                          <td className="py-4 text-sm font-medium text-text-primary">{item.quantity}</td>
+                          <td className="py-4 text-sm font-bold text-primary text-right">{formatCurrency(item.total)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -292,7 +422,8 @@ const OrdersPage = () => {
               <button onClick={() => setSelectedOrder(null)} className="btn-secondary">Close</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

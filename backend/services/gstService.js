@@ -104,8 +104,14 @@ const calculateOrderGST = (items, settings, customerState) => {
     const gstRate = getGSTRateFromSettings(settings, hsnCode);
 
     const itemTotal = item.price * item.quantity;
-    const itemDiscount = item.discount || 0;
-    const taxableValue = roundToTwo(itemTotal - itemDiscount);
+    
+    // Check if price is inclusive of GST
+    const isPriceInclusive = settings.gst?.isPriceInclusive || false;
+    let taxableValue = itemTotal;
+
+    if (isPriceInclusive && gstRate > 0) {
+      taxableValue = roundToTwo(itemTotal / (1 + gstRate / 100));
+    }
 
     const gst = calculateGST(taxableValue, gstRate, businessState, customerState);
 

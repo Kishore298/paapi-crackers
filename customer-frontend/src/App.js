@@ -13,6 +13,7 @@ import Layout from './components/layout/Layout';
 // Pages
 import HomePage from './pages/HomePage';
 import CartPage from './pages/CartPage';
+import LoginPage from './pages/LoginPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderSuccessPage from './pages/OrderSuccessPage';
 import MyOrdersPage from './pages/MyOrdersPage';
@@ -24,6 +25,7 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ShippingPolicyPage from './pages/ShippingPolicyPage';
 import CancellationPolicyPage from './pages/CancellationPolicyPage';
+import SafetyGuidelinesPage from './pages/SafetyGuidelinesPage';
 import OnlineOrdersClosedPage from './pages/OnlineOrdersClosedPage';
 
 function App() {
@@ -104,17 +106,18 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage settings={settings} />} />
           <Route path="/cart" element={<CartPage settings={settings} />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/checkout" element={<CheckoutPage settings={settings} />} />
           <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
           <Route path="/my-orders" element={<MyOrdersPage />} />
           <Route path="/order/:orderId" element={<OrderDetailsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/about" element={<AboutUsPage settings={settings} />} />
           <Route path="/contact" element={<ContactUsPage settings={settings} />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/shipping-policy" element={<ShippingPolicyPage />} />
           <Route path="/cancellation-policy" element={<CancellationPolicyPage />} />
+          <Route path="/safety" element={<SafetyGuidelinesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

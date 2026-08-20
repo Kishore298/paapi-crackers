@@ -24,9 +24,9 @@ const Footer = ({ settings }) => {
             <ul className="space-y-2">
               {[
                 { to: '/', label: 'Shop' },
-                { to: '/about', label: 'About Us' },
                 { to: '/contact', label: 'Contact Us' },
                 { to: '/my-orders', label: 'My Orders' },
+                { to: '/safety', label: 'Safety Guidelines' },
               ].map((link) => (
                 <li key={link.to}>
                   <Link to={link.to} className="text-sm text-text-secondary hover:text-primary transition-colors">
@@ -63,19 +63,30 @@ const Footer = ({ settings }) => {
               {(contact.phone || business.phone) && (
                 <li className="flex items-center gap-2 text-sm text-text-secondary">
                   <Phone size={14} className="text-primary flex-shrink-0" />
-                  {contact.phone || business.phone}
+                  <a href={`tel:${contact.phone || business.phone}`} className="hover:text-primary transition-colors">
+                    {contact.phone || business.phone}
+                  </a>
                 </li>
               )}
               {(contact.email || business.email) && (
                 <li className="flex items-center gap-2 text-sm text-text-secondary">
                   <Mail size={14} className="text-primary flex-shrink-0" />
-                  {contact.email || business.email}
+                  <a href={`mailto:${contact.email || business.email}`} className="hover:text-primary transition-colors">
+                    {contact.email || business.email}
+                  </a>
                 </li>
               )}
               {(contact.address || business.address) && (
                 <li className="flex items-start gap-2 text-sm text-text-secondary">
                   <MapPin size={14} className="text-primary flex-shrink-0 mt-0.5" />
-                  {contact.address || business.address}
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address || business.address || '')}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {contact.address || business.address}
+                  </a>
                 </li>
               )}
             </ul>

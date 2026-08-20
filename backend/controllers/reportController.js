@@ -10,15 +10,17 @@ const { generateInvoicePDF } = require('../utils/pdfGenerator');
 // GET /api/reports/sales
 exports.getSalesReport = async (req, res, next) => {
   try {
-    const { startDate, endDate, period = 'daily', source } = req.query;
+    const { startDate, endDate, period = 'daily' } = req.query;
 
     const dateFilter = {};
     if (startDate) dateFilter.$gte = new Date(startDate);
     if (endDate) dateFilter.$lte = new Date(endDate + 'T23:59:59.999Z');
 
-    const matchFilter = { status: { $ne: 'Cancelled' } };
-    if (Object.keys(dateFilter).length) matchFilter.createdAt = dateFilter;
-    if (source) matchFilter.source = source;
+    const orderFilter = { status: { $ne: 'Cancelled' } };
+    if (Object.keys(dateFilter).length) orderFilter.createdAt = dateFilter;
+
+    const posFilter = {};
+    if (Object.keys(dateFilter).length) posFilter.createdAt = dateFilter;
 
     let dateFormat;
     switch (period) {
@@ -27,37 +29,93 @@ exports.getSalesReport = async (req, res, next) => {
       default: dateFormat = '%Y-%m-%d';
     }
 
-    const orderSales = await Order.aggregate([
-      { $match: matchFilter },
+    // 1. Daily Sales
+    const orderDaily = await Order.aggregate([
+      { $match: orderFilter },
       {
         $group: {
           _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
-          totalSales: { $sum: { $subtract: ['$grandTotal', { $ifNull: ['$gstAmount', 0] }] } },
-          totalCollections: { $sum: '$grandTotal' },
-          orderCount: { $sum: 1 },
-          avgOrderValue: { $avg: '$grandTotal' },
+          revenue: { $sum: '$grandTotal' },
+          orders: { $sum: 1 },
         },
-      },
-      { $sort: { _id: 1 } },
+      }
     ]);
 
-    const posFilter = {};
-    if (Object.keys(dateFilter).length) posFilter.createdAt = dateFilter;
-
-    const posSalesData = await POSSale.aggregate([
+    const posDaily = await POSSale.aggregate([
       { $match: posFilter },
       {
         $group: {
           _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
-          totalSales: { $sum: { $subtract: ['$grandTotal', { $ifNull: ['$gstAmount', 0] }] } },
-          totalCollections: { $sum: '$grandTotal' },
-          saleCount: { $sum: 1 },
+          revenue: { $sum: '$grandTotal' },
+          orders: { $sum: 1 },
         },
-      },
-      { $sort: { _id: 1 } },
+      }
     ]);
 
-    res.json({ success: true, data: { orderSales, posSalesData } });
+    const combinedDailyMap = {};
+    for (const d of [...orderDaily, ...posDaily]) {
+      if (!combinedDailyMap[d._id]) combinedDailyMap[d._id] = { _id: d._id, revenue: 0, orders: 0 };
+      combinedDailyMap[d._id].revenue += d.revenue;
+      combinedDailyMap[d._id].orders += d.orders;
+    }
+    const dailySales = Object.values(combinedDailyMap).sort((a, b) => a._id.localeCompare(b._id));
+
+    // 2. Summary
+    const summary = dailySales.reduce((acc, curr) => {
+      acc.totalRevenue += curr.revenue;
+      acc.totalOrders += curr.orders;
+      return acc;
+    }, { totalRevenue: 0, totalOrders: 0, totalItemsSold: 0 });
+
+    // 3. Product Sales
+    const orderItems = await Order.aggregate([
+      { $match: orderFilter },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.product',
+          quantitySold: { $sum: '$items.quantity' },
+          revenueGenerated: { $sum: '$items.total' }
+        }
+      }
+    ]);
+
+    const posItems = await POSSale.aggregate([
+      { $match: posFilter },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.product',
+          quantitySold: { $sum: '$items.quantity' },
+          revenueGenerated: { $sum: '$items.total' }
+        }
+      }
+    ]);
+
+    const combinedProductMap = {};
+    for (const item of [...orderItems, ...posItems]) {
+      const pid = item._id ? item._id.toString() : 'unknown';
+      if (!combinedProductMap[pid]) combinedProductMap[pid] = { quantitySold: 0, revenueGenerated: 0 };
+      combinedProductMap[pid].quantitySold += item.quantitySold;
+      combinedProductMap[pid].revenueGenerated += item.revenueGenerated;
+      summary.totalItemsSold += item.quantitySold;
+    }
+
+    // Populate product names
+    const productIds = Object.keys(combinedProductMap).filter(id => id !== 'unknown');
+    const products = await Product.find({ _id: { $in: productIds } }).select('name sku').lean();
+    
+    const productSales = products.map(p => ({
+      name: p.name,
+      sku: p.sku,
+      quantitySold: combinedProductMap[p._id.toString()].quantitySold,
+      revenueGenerated: combinedProductMap[p._id.toString()].revenueGenerated
+    })).sort((a, b) => b.quantitySold - a.quantitySold);
+
+    res.json({ 
+      success: true, 
+      data: { summary, dailySales, productSales } 
+    });
   } catch (error) {
     next(error);
   }
@@ -348,7 +406,7 @@ exports.exportReport = async (req, res, next) => {
           sku: p.sku,
           category: p.category?.name,
           stock: p.stock,
-          price: p.sellingPrice,
+          price: p.mrp,
           lastUpdate: p.lastStockUpdate ? new Date(p.lastStockUpdate).toLocaleDateString('en-IN') : '',
         }));
         columns = [

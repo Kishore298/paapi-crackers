@@ -22,9 +22,7 @@ const ProductsPage = () => {
     name: '',
     description: '',
     category: '',
-    sellingPrice: '',
-    discountPrice: '',
-    packQuantity: '',
+    mrp: '',
     youtubeVideoId: '',
     hsnCode: '',
     stock: '0',
@@ -66,9 +64,7 @@ const ProductsPage = () => {
         name: product.name,
         description: product.description || '',
         category: product.category?._id || '',
-        sellingPrice: product.sellingPrice,
-        discountPrice: product.discountPrice || '',
-        packQuantity: product.packQuantity,
+        mrp: product.mrp,
         youtubeVideoId: product.youtubeVideoId || '',
         hsnCode: product.hsnCode || '',
         stock: product.stock.toString(),
@@ -77,8 +73,8 @@ const ProductsPage = () => {
     } else {
       setEditingProduct(null);
       setFormData({
-        name: '', description: '', category: '', sellingPrice: '', discountPrice: '',
-        packQuantity: '', youtubeVideoId: '', hsnCode: '', stock: '0', active: true
+        name: '', description: '', category: '', mrp: '',
+        youtubeVideoId: '', hsnCode: '', stock: '0', active: true
       });
     }
     setImageFile(null);
@@ -204,11 +200,11 @@ const ProductsPage = () => {
                     <td className="font-mono text-sm">{product.sku}</td>
                     <td>{product.category?.name || '-'}</td>
                     <td>
-                      <div className="font-medium text-text-primary">
-                        {formatCurrency(product.discountPrice && product.discountPrice < product.sellingPrice ? product.discountPrice : product.sellingPrice)}
+                      <div className="font-bold text-gray-900 mt-1">
+                        {formatCurrency(product.discountPrice && product.discountPrice < product.mrp ? product.discountPrice : product.mrp)}
                       </div>
-                      {product.discountPrice && product.discountPrice < product.sellingPrice && (
-                        <div className="text-xs text-text-secondary line-through">{formatCurrency(product.sellingPrice)}</div>
+                      {product.discountPrice && product.discountPrice < product.mrp && (
+                        <div className="text-xs text-text-secondary line-through">{formatCurrency(product.mrp)}</div>
                       )}
                     </td>
                     <td>
@@ -270,20 +266,12 @@ const ProductsPage = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-text-primary mb-1">Selling Price (₹) *</label>
-                      <input type="number" min="0" step="0.01" value={formData.sellingPrice} onChange={e => setFormData({...formData, sellingPrice: e.target.value})} className="input-field" required />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-text-primary mb-1">Discount Price (₹)</label>
-                      <input type="number" min="0" step="0.01" value={formData.discountPrice} onChange={e => setFormData({...formData, discountPrice: e.target.value})} className="input-field" />
+                      <label className="block text-sm font-medium text-gray-700 mb-1">MRP*</label>
+                      <input type="number" min="0" step="0.01" value={formData.mrp} onChange={e => setFormData({...formData, mrp: e.target.value})} className="input-field" required />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-text-primary mb-1">Pack Quantity *</label>
-                      <input type="text" value={formData.packQuantity} onChange={e => setFormData({...formData, packQuantity: e.target.value})} className="input-field" placeholder="e.g. 5 Pcs" required />
-                    </div>
                     {!editingProduct && (
                       <div>
                         <label className="block text-sm font-medium text-text-primary mb-1">Opening Stock</label>

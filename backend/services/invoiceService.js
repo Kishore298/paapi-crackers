@@ -47,23 +47,26 @@ const generateNormalInvoice = async ({ order, posSale, generatedBy }) => {
         gstin: posSale.gstin,
       };
 
-  const items = source.items.map((item) => ({
-    productSnapshot: item.productSnapshot || {
-      name: item.name,
-      sku: item.sku,
-    },
-    quantity: item.quantity,
-    rate: item.price,
-    discount: item.discount || 0,
-    taxableValue: item.total,
-    cgstRate: 0,
-    cgstAmount: 0,
-    sgstRate: 0,
-    sgstAmount: 0,
-    igstRate: 0,
-    igstAmount: 0,
-    total: item.total,
-  }));
+  const items = source.items.map((item) => {
+    const itemTotal = item.total !== undefined ? item.total : (item.price * item.quantity);
+    return {
+      productSnapshot: item.productSnapshot || {
+        name: item.name || 'Product',
+        sku: item.sku,
+      },
+      quantity: item.quantity,
+      rate: item.price,
+      discount: item.discount || 0,
+      taxableValue: itemTotal,
+      cgstRate: 0,
+      cgstAmount: 0,
+      sgstRate: 0,
+      sgstAmount: 0,
+      igstRate: 0,
+      igstAmount: 0,
+      total: itemTotal,
+    };
+  });
 
   const invoice = await Invoice.create({
     invoiceNumber,
@@ -82,7 +85,7 @@ const generateNormalInvoice = async ({ order, posSale, generatedBy }) => {
     },
     customerSnapshot,
     items,
-    taxableAmount: source.subtotal - (source.discount || 0),
+    taxableAmount: source.subtotal,
     grandTotal: source.grandTotal,
     discount: source.discount || 0,
     deliveryCharge: source.deliveryCharge || 0,

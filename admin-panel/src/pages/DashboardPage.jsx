@@ -92,7 +92,7 @@ const DashboardPage = () => {
           subtext={`${stats?.todayOrders} orders today`}
           icon={TrendingUp} 
           color="bg-green-100 text-green-700"
-          linkTo="/orders"
+          linkTo="/reports?period=today"
         />
         <StatCard 
           title="Active Orders" 

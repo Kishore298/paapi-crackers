@@ -94,11 +94,12 @@ exports.createPOSSale = async (req, res, next) => {
           });
         }
 
-        const price = product.discountPrice && product.discountPrice < product.sellingPrice
+        // Use mrp, unless valid discount exists
+        const price = product.discountPrice && product.discountPrice < product.mrp
           ? product.discountPrice
-          : product.sellingPrice;
-        const discount = product.discountPrice && product.discountPrice < product.sellingPrice
-          ? (product.sellingPrice - product.discountPrice) * item.quantity
+          : product.mrp;
+        const discount = product.discountPrice && product.discountPrice < product.mrp
+          ? (product.mrp - product.discountPrice) * item.quantity
           : 0;
         const itemTotal = price * item.quantity;
 

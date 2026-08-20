@@ -1,6 +1,8 @@
 const Product = require('../models/Product');
 const { generateSKU } = require('../services/skuService');
 const { generateBarcodeBase64 } = require('../services/barcodeService');
+const Category = require('../models/Category');
+const Settings = require('../models/Settings');
 const storageProvider = require('../utils/storageProvider');
 const stockService = require('../services/stockService');
 
@@ -25,8 +27,8 @@ exports.getProducts = async (req, res, next) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     let sortObj = {};
-    if (sort === 'price_asc') sortObj = { sellingPrice: 1 };
-    else if (sort === 'price_desc') sortObj = { sellingPrice: -1 };
+    if (sort === 'price_asc') sortObj = { mrp: 1 };
+    else if (sort === 'price_desc') sortObj = { mrp: -1 };
     else if (sort === 'name') sortObj = { name: 1 };
     else if (sort === 'stock') sortObj = { stock: 1 };
     else sortObj = { category: 1, name: 1 };
@@ -67,7 +69,12 @@ exports.getProduct = async (req, res, next) => {
 // POST /api/products
 exports.createProduct = async (req, res, next) => {
   try {
-    const { name, description, category, sellingPrice, discountPrice, packQuantity, youtubeVideoId, hsnCode, stock, active } = req.body;
+    const { name, description, category, mrp, youtubeVideoId, hsnCode, stock, active } = req.body;
+
+    // Fetch settings for global discount
+    const settings = await Settings.getSettings();
+    const globalDiscount = settings?.pricing?.globalDiscount || 0;
+    const calculatedDiscountPrice = globalDiscount > 0 ? parseFloat(mrp) - (parseFloat(mrp) * globalDiscount / 100) : undefined;
 
     // Auto-generate SKU
     const sku = await generateSKU();
@@ -90,9 +97,8 @@ exports.createProduct = async (req, res, next) => {
       description,
       category,
       sku,
-      sellingPrice: parseFloat(sellingPrice),
-      discountPrice: discountPrice ? parseFloat(discountPrice) : null,
-      packQuantity,
+      mrp: parseFloat(mrp),
+      discountPrice: calculatedDiscountPrice,
       image,
       youtubeVideoId: videoId,
       hsnCode,
@@ -126,14 +132,17 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
 
-    const { name, description, category, sellingPrice, discountPrice, packQuantity, youtubeVideoId, hsnCode, active } = req.body;
+    const { name, description, category, mrp, youtubeVideoId, hsnCode, active } = req.body;
 
-    if (name !== undefined) product.name = name;
+    if (name) product.name = name;
     if (description !== undefined) product.description = description;
-    if (category !== undefined) product.category = category;
-    if (sellingPrice !== undefined) product.sellingPrice = parseFloat(sellingPrice);
-    if (discountPrice !== undefined) product.discountPrice = discountPrice ? parseFloat(discountPrice) : null;
-    if (packQuantity !== undefined) product.packQuantity = packQuantity;
+    if (category) product.category = category;
+    if (mrp !== undefined) {
+      product.mrp = parseFloat(mrp);
+      const settings = await Settings.getSettings();
+      const globalDiscount = settings?.pricing?.globalDiscount || 0;
+      product.discountPrice = globalDiscount > 0 ? product.mrp - (product.mrp * globalDiscount / 100) : undefined;
+    }
     if (hsnCode !== undefined) product.hsnCode = hsnCode;
     if (active !== undefined) product.active = active === true || active === 'true';
 

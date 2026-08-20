@@ -20,7 +20,7 @@ exports.updateSettings = async (req, res, next) => {
     // Update each section if provided
     const sections = [
       'business', 'website', 'orders', 'inventory', 'payments',
-      'gst', 'delivery', 'notifications', 'roles', 'closedPage',
+      'gst', 'delivery', 'notifications', 'roles', 'closedPage', 'pricing'
     ];
 
     for (const section of sections) {
@@ -42,6 +42,24 @@ exports.updateSettings = async (req, res, next) => {
     }
 
     await settings.save();
+
+    // If globalDiscount is updated, update all products
+    if (updates.pricing && updates.pricing.globalDiscount !== undefined) {
+      const globalDiscount = Number(updates.pricing.globalDiscount);
+      const Product = require('../models/Product');
+      
+      // Update all products with auto-calculated discountPrice
+      await Product.updateMany({}, [
+        { 
+          $set: { 
+            discountPrice: { 
+              $subtract: ["$mrp", { $multiply: ["$mrp", { $divide: [globalDiscount, 100] }] }] 
+            } 
+          } 
+        }
+      ]);
+    }
+
     res.json({ success: true, data: settings });
   } catch (error) {
     next(error);

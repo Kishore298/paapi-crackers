@@ -1,33 +1,40 @@
 import React from 'react';
 import { Plus, Minus } from 'lucide-react';
 
-const QuantityControl = ({ quantity, onIncrement, onDecrement, maxStock, compact = false }) => {
+const QuantityControl = ({ quantity, onIncrement, onDecrement, maxStock, compact = false, onSetQuantity }) => {
   const isMaxed = quantity >= maxStock;
 
-  if (quantity === 0) {
-    return (
-      <button
-        onClick={onIncrement}
-        disabled={maxStock === 0}
-        className={`btn-primary ${compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'} ${
-          maxStock === 0 ? 'opacity-50 cursor-not-allowed' : ''
-        }`}
-      >
-        {maxStock === 0 ? 'Out of Stock' : 'Add'}
-      </button>
-    );
-  }
+  const handleInputChange = (e) => {
+    let val = parseInt(e.target.value) || 0;
+    if (val < 0) val = 0;
+    if (val > maxStock) val = maxStock;
+    if (onSetQuantity) {
+      onSetQuantity(val);
+    }
+  };
 
   return (
     <div className="flex items-center gap-0.5">
-      <button onClick={onDecrement} className={compact ? 'qty-btn w-7 h-7' : 'qty-btn'}>
+      <button 
+        onClick={onDecrement} 
+        className={compact ? 'qty-btn w-7 h-7' : 'qty-btn'} 
+        disabled={quantity <= 0}
+      >
         <Minus size={compact ? 12 : 14} />
       </button>
-      <span className={compact ? 'qty-display w-6 h-7 text-xs' : 'qty-display'}>{quantity}</span>
+      <input 
+        type="number"
+        min="0"
+        max={maxStock}
+        value={quantity || ''}
+        onChange={handleInputChange}
+        placeholder="0"
+        className={compact ? 'qty-display w-10 h-7 text-xs text-center border-none p-0 outline-none bg-transparent focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none' : 'qty-display w-12 text-center border-none p-0 outline-none bg-transparent focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none'}
+      />
       <button
         onClick={onIncrement}
-        disabled={isMaxed}
-        className={`${compact ? 'qty-btn w-7 h-7' : 'qty-btn'} ${isMaxed ? 'opacity-50 cursor-not-allowed' : ''}`}
+        disabled={isMaxed || maxStock === 0}
+        className={`${compact ? 'qty-btn w-7 h-7' : 'qty-btn'} ${isMaxed || maxStock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
         <Plus size={compact ? 12 : 14} />
       </button>

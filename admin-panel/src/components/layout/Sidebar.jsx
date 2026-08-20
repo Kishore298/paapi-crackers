@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, Grid, Layers,
   ShoppingCart, FileText, Users,
-  BarChart3, Image, LogOut, X, Shield, Box
+  BarChart3, Image, LogOut, X, Shield, Box, Settings
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
@@ -37,7 +37,6 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       items: [
         { title: 'Online Orders', icon: ShoppingCart, path: '/orders', roles: ['superAdmin', 'admin', 'orderManager'] },
         { title: 'POS Billing', icon: Shield, path: '/pos', roles: ['superAdmin', 'admin', 'posOperator'] },
-        { title: 'Invoices', icon: FileText, path: '/invoices', roles: ['superAdmin', 'admin', 'orderManager', 'posOperator'] },
         { title: 'Customers', icon: Users, path: '/customers', roles: ['superAdmin', 'admin', 'orderManager'] },
       ]
     },
@@ -46,6 +45,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       items: [
         { title: 'Reports', icon: BarChart3, path: '/reports', roles: ['superAdmin', 'admin'] },
         { title: 'Banners', icon: Image, path: '/banners', roles: ['superAdmin', 'admin'] },
+        { title: 'Settings', icon: Settings, path: '/settings', roles: ['superAdmin', 'admin'] },
       ]
     }
   ];

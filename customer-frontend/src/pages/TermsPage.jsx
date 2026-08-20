@@ -3,23 +3,44 @@ import React from 'react';
 const TermsPage = () => {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
-      <h1 className="text-3xl font-bold text-text-primary mb-6">Terms & Conditions</h1>
-      <div className="card p-8 prose prose-sm sm:prose-base max-w-none text-text-secondary leading-relaxed">
-        <p><strong>Last Updated: {new Date().toLocaleDateString()}</strong></p>
-        <h3>1. Agreement to Terms</h3>
-        <p>By accessing or using our services, you agree to be bound by these Terms and Conditions and all applicable laws and regulations.</p>
-        
-        <h3>2. Use License</h3>
-        <p>Permission is granted to temporarily download one copy of the materials (information or software) on our website for personal, non-commercial transitory viewing only.</p>
-        
-        <h3>3. Online Orders</h3>
-        <p>We reserve the right to refuse any order you place with us. We may, in our sole discretion, limit or cancel quantities purchased per person, per household or per order.</p>
+      <h1 className="text-3xl font-bold text-text-primary mb-2">Terms &amp; Conditions</h1>
+      <p className="text-text-secondary mb-8">Please read these terms carefully before using our website.</p>
+      <div className="card p-8 space-y-6 text-text-secondary leading-relaxed">
 
-        <h3>4. Pricing and Availability</h3>
-        <p>All prices are subject to change without notice. We reserve the right at any time to modify or discontinue the Service without notice at any time.</p>
+        <section>
+          <h3 className="text-lg font-bold text-text-primary mb-2">1. Acceptance of Terms</h3>
+          <p>By accessing and placing an order with Paapi Crackers, you confirm that you are in agreement with and bound by the terms and conditions outlined below. These terms apply to the entire website and any email, WhatsApp, or other type of communication between you and Paapi Crackers.</p>
+        </section>
 
-        <h3>5. Governing Law</h3>
-        <p>These terms and conditions are governed by and construed in accordance with the laws of India and you irrevocably submit to the exclusive jurisdiction of the courts in that State or location.</p>
+        <section>
+          <h3 className="text-lg font-bold text-text-primary mb-2">2. Legal Age Requirement</h3>
+          <p>You must be at least 18 years of age to purchase from our website. By placing an order, you certify that you are legally permitted to purchase, receive, and possess our products in your respective city and state.</p>
+        </section>
+
+        <section>
+          <h3 className="text-lg font-bold text-text-primary mb-2">3. Products and Pricing</h3>
+          <ul className="list-disc pl-6 space-y-1">
+            <li>All prices are listed in Indian Rupees (INR) and are subject to change without prior notice.</li>
+            <li>We strive to display our products as accurately as possible; however, packaging, wrapper designs, and sizes may occasionally vary from the images shown.</li>
+            <li>All items are subject to availability. If a purchased item is out of stock, we reserve the right to either refund the amount or substitute it with an item of equal or greater value after obtaining your consent.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3 className="text-lg font-bold text-text-primary mb-2">4. Payment Terms</h3>
+          <p>We offer 100% secure payment options. Orders will only be processed upon successful verification of payment (for prepaid orders). In the case of Cash on Delivery (COD), standard conditions and limits defined during checkout will apply.</p>
+        </section>
+
+        <section>
+          <h3 className="text-lg font-bold text-text-primary mb-2">5. Transport and Liability</h3>
+          <p>Our products are strictly regulated goods. We dispatch materials through licensed, third-party logistics/transport agencies. Once the consignment is handed over to the transport agency, Paapi Crackers is not directly liable for transport delays or damages, though we will assist in resolving any issues with the transporter to the best of our ability.</p>
+        </section>
+
+        <section>
+          <h3 className="text-lg font-bold text-text-primary mb-2">6. Jurisdiction</h3>
+          <p>Any disputes arising out of these terms and conditions shall be subject to the exclusive jurisdiction of the courts in Sivakasi, Tamil Nadu.</p>
+        </section>
+
       </div>
     </div>
   );

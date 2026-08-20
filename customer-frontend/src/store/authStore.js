@@ -8,7 +8,7 @@ const useAuthStore = create(
       isIdentified: false,
 
       setCustomer: (customer) => set({ customer, isIdentified: true }),
-      
+
       clearCustomer: () => set({ customer: null, isIdentified: false }),
     }),
     {

@@ -39,11 +39,13 @@ exports.getDashboard = async (req, res, next) => {
       POSSale.find(todayFilter).select('grandTotal gstAmount').lean(),
     ]);
 
-    // Calculate GST-exclusive figures
-    const totalSales = allOrders.reduce((sum, o) => sum + (o.grandTotal - (o.gstAmount || 0)), 0);
-    const todaySales = todayOrdersList.reduce((sum, o) => sum + (o.grandTotal - (o.gstAmount || 0)), 0);
+    // Calculate figures
+    const onlineSalesTotal = allOrders.reduce((sum, o) => sum + o.grandTotal, 0);
+    const posSalesTotal = posSales.reduce((sum, s) => sum + s.grandTotal, 0);
+    const totalSales = onlineSalesTotal + posSalesTotal;
+    
+    const todaySales = todayOrdersList.reduce((sum, o) => sum + o.grandTotal, 0);
     const onlineOrders = allOrders.filter((o) => o.source === 'online').length;
-    const posSalesTotal = posSales.reduce((sum, s) => sum + (s.grandTotal - (s.gstAmount || 0)), 0);
     const pendingPayments = allOrders.filter((o) => o.paymentStatus === 'Pending').length;
     const onlineCollections = allOrders
       .filter((o) => o.paymentStatus === 'Completed')
@@ -51,7 +53,7 @@ exports.getDashboard = async (req, res, next) => {
     const posCollections = posSales.reduce((sum, s) => sum + s.grandTotal, 0);
 
     const todayTotalSales = todaySales +
-      todayPOSSales.reduce((sum, s) => sum + (s.grandTotal - (s.gstAmount || 0)), 0);
+      todayPOSSales.reduce((sum, s) => sum + s.grandTotal, 0);
 
     res.json({
       success: true,
@@ -89,7 +91,7 @@ exports.getChartData = async (req, res, next) => {
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          totalSales: { $sum: { $subtract: ['$grandTotal', { $ifNull: ['$gstAmount', 0] }] } },
+          totalSales: { $sum: '$grandTotal' },
           orderCount: { $sum: 1 },
         },
       },
@@ -101,7 +103,7 @@ exports.getChartData = async (req, res, next) => {
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          totalSales: { $sum: { $subtract: ['$grandTotal', { $ifNull: ['$gstAmount', 0] }] } },
+          totalSales: { $sum: '$grandTotal' },
           saleCount: { $sum: 1 },
         },
       },

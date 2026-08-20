@@ -4,15 +4,22 @@ let firebaseInitialized = false;
 
 const initFirebase = () => {
   try {
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-    if (!serviceAccountPath) {
-      console.log('Firebase: No service account configured. Push notifications disabled.');
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+    if (!projectId || !clientEmail || !privateKey) {
+      console.log('Firebase: Missing credentials in .env. Push notifications disabled.');
       return;
     }
 
-    const serviceAccount = require(serviceAccountPath);
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        // Replace literal string '\n' with actual newlines in case it's escaped in .env
+        privateKey: privateKey.replace(/\\n/g, '\n'),
+      }),
     });
     firebaseInitialized = true;
     console.log('Firebase Admin SDK initialized.');

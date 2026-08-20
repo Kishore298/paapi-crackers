@@ -115,12 +115,15 @@ exports.createOrder = async (req, res, next) => {
           });
         }
 
-        // Server-side price - use discount price if available
-        const price = product.discountPrice && product.discountPrice < product.sellingPrice
-          ? product.discountPrice
-          : product.sellingPrice;
-        const discount = product.discountPrice && product.discountPrice < product.sellingPrice
-          ? (product.sellingPrice - product.discountPrice) * item.quantity
+        // Use MRP as base, calculate discount using settings global discount
+        const globalDiscount = settings.pricing?.globalDiscount || 0;
+        const discountPrice = globalDiscount > 0 
+          ? product.mrp - (product.mrp * globalDiscount / 100) 
+          : product.mrp;
+          
+        const price = discountPrice < product.mrp ? discountPrice : product.mrp;
+        const discount = discountPrice < product.mrp 
+          ? (product.mrp - discountPrice) * item.quantity
           : 0;
         const itemTotal = price * item.quantity;
 
