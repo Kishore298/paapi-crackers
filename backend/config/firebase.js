@@ -33,7 +33,17 @@ const sendPushNotification = async (token, title, body, data = {}) => {
 
   try {
     const message = {
-      notification: { title, body },
+      notification: { 
+        title, 
+        body,
+        imageUrl: 'https://paapicrackers.com/paapi-logo.png'
+      },
+      webpush: {
+        notification: {
+          icon: 'https://paapicrackers.com/paapi-logo.png',
+          badge: 'https://paapicrackers.com/paapi-logo.png'
+        }
+      },
       data: Object.fromEntries(
         Object.entries(data).map(([k, v]) => [k, String(v)])
       ),
