@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, X, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
 import { formatCurrency } from '../utils/format';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const CombosPage = () => {
   const [combos, setCombos] = useState([]);
@@ -23,6 +24,7 @@ const CombosPage = () => {
   const [comboProducts, setComboProducts] = useState([]); // [{product: id, quantity: num}]
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
     fetchData();
@@ -118,15 +120,17 @@ const CombosPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this combo?')) {
-      try {
-        await API.delete(`/combos/${id}`);
-        toast.success('Combo deleted');
-        fetchData();
-      } catch (error) {
-        toast.error('Failed to delete combo');
-      }
+  const handleDelete = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const executeDelete = async () => {
+    try {
+      await API.delete(`/combos/${confirmModal.id}`);
+      toast.success('Combo deleted');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to delete combo');
     }
   };
 
@@ -312,6 +316,15 @@ const CombosPage = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={executeDelete}
+        title="Delete Combo"
+        message="Are you sure you want to delete this combo? This action cannot be undone."
+        confirmText="Delete"
+      />
     </div>
   );
 };

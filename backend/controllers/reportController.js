@@ -34,7 +34,7 @@ exports.getSalesReport = async (req, res, next) => {
       { $match: orderFilter },
       {
         $group: {
-          _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
+          _id: { $dateToString: { format: dateFormat, date: '$createdAt', timezone: 'Asia/Kolkata' } },
           revenue: { $sum: '$grandTotal' },
           orders: { $sum: 1 },
         },
@@ -45,7 +45,7 @@ exports.getSalesReport = async (req, res, next) => {
       { $match: posFilter },
       {
         $group: {
-          _id: { $dateToString: { format: dateFormat, date: '$createdAt' } },
+          _id: { $dateToString: { format: dateFormat, date: '$createdAt', timezone: 'Asia/Kolkata' } },
           revenue: { $sum: '$grandTotal' },
           orders: { $sum: 1 },
         },

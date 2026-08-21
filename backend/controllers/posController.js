@@ -21,7 +21,7 @@ exports.createPOSSale = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { customerName, customerPhone, items, paymentMethod, billType, gstin } = req.body;
+    const { customerName, customerPhone, items, paymentMethod, billType, gstin, manualDiscount = 0 } = req.body;
 
     if (!items || items.length === 0) {
       await session.abortTransaction();
@@ -38,9 +38,11 @@ exports.createPOSSale = async (req, res, next) => {
     if (customerPhone) {
       let customer = await Customer.findOne({ phone: customerPhone.trim() }).session(session);
       if (!customer && customerName) {
-        [customer] = await Customer.create([{ name: customerName.trim(), phone: customerPhone.trim() }], { session });
+        [customer] = await Customer.create([{ name: customerName.trim(), phone: customerPhone.trim(), source: 'admin' }], { session });
       }
-      if (customer) customerId = customer._id;
+      if (customer) {
+        customerId = customer._id;
+      }
     }
 
     const saleItems = [];
@@ -125,7 +127,7 @@ exports.createPOSSale = async (req, res, next) => {
     }
 
     const gstInfo = await gstService.calculateGSTAmount(subtotal);
-    const grandTotal = subtotal;
+    const grandTotal = Math.max(0, subtotal - Number(manualDiscount));
     const billNumber = await generateBillNumber();
 
     const [sale] = await POSSale.create(
@@ -137,7 +139,7 @@ exports.createPOSSale = async (req, res, next) => {
           customerPhone: customerPhone || '',
           items: saleItems,
           subtotal,
-          discount: saleItems.reduce((sum, i) => sum + (i.discount || 0), 0),
+          discount: saleItems.reduce((sum, i) => sum + (i.discount || 0), 0) + Number(manualDiscount),
           gstAmount: gstInfo.gstAmount,
           grandTotal,
           paymentMethod,

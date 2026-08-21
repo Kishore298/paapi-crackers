@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Menu, Bell, Store, User, LogOut, Package } from 'lucide-react';
+import { ShoppingCart, Menu, Bell, Store, User, LogOut, Package, Phone } from 'lucide-react';
 import useCartStore from '../../store/cartStore';
 import useNotificationStore from '../../store/notificationStore';
 import useAuthStore from '../../store/authStore';
@@ -38,7 +38,7 @@ const Navbar = ({ settings }) => {
 
   const navLinks = [
     { to: '/', label: 'Shop', icon: Store },
-    { to: '/contact', label: 'Contact Us' },
+    { to: '/contact', label: 'Contact Us', icon: Phone },
   ];
 
   const isActive = (path) => location.pathname === path;

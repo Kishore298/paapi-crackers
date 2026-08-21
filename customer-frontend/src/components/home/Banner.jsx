@@ -1,6 +1,17 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+const getOptimizedUrl = (url, width = 1200) => {
+  if (!url || !url.includes('cloudinary.com')) return url;
+  try {
+    const parts = url.split('/upload/');
+    if (parts.length === 2) {
+      return `${parts[0]}/upload/c_scale,w_${width},q_auto,f_auto/${parts[1]}`;
+    }
+  } catch (e) {}
+  return url;
+};
+
 const Banner = ({ banners }) => {
   const [currentIndex, setCurrentIndex] = React.useState(0);
 
@@ -16,19 +27,30 @@ const Banner = ({ banners }) => {
 
   return (
     <div className="relative w-full overflow-hidden rounded-2xl bg-gray-100">
-      <div className="relative aspect-[21/9] sm:aspect-[3/1] md:aspect-[4/1]">
+      <div className="relative w-full">
+        {/* Invisible placeholder to establish responsive height perfectly matched to the image */}
+        <img 
+          src={getOptimizedUrl(banners[0].image?.url, 1200)} 
+          alt="placeholder" 
+          className="w-full h-auto invisible block" 
+        />
+        
         {banners.map((banner, index) => (
           <div
             key={banner._id}
             className={`absolute inset-0 transition-opacity duration-700 ${
-              index === currentIndex ? 'opacity-100' : 'opacity-0'
+              index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
             }`}
           >
-            <img
-              src={banner.image?.url}
-              alt={banner.title || 'Banner'}
-              className="w-full h-full object-cover"
-            />
+            <picture>
+              <source media="(max-width: 640px)" srcSet={getOptimizedUrl(banner.image?.url, 640)} />
+              <source media="(max-width: 1024px)" srcSet={getOptimizedUrl(banner.image?.url, 1024)} />
+              <img
+                src={getOptimizedUrl(banner.image?.url, 1600)}
+                alt={banner.title || 'Banner'}
+                className="w-full h-full object-contain"
+              />
+            </picture>
             {banner.title && (
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end">
                 <p className="text-white font-bold text-lg sm:text-xl p-4 sm:p-6">{banner.title}</p>

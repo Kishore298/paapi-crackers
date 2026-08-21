@@ -4,6 +4,7 @@ import { Search, Eye, Truck, PackageCheck, AlertCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
 import { formatCurrency, formatDateTime } from '../utils/format';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -14,6 +15,7 @@ const OrdersPage = () => {
   // Order Details Modal
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [cancelModal, setCancelModal] = useState({ isOpen: false, orderId: null });
 
   useEffect(() => {
     fetchOrders();
@@ -191,29 +193,43 @@ const OrdersPage = () => {
                       </div>
                     </td>
                     <td>
-                      <select
-                        className={`text-xs p-1.5 rounded-full border border-border cursor-pointer font-medium ${
-                          order.status === 'Pending' ? 'bg-orange-50 text-orange-600' :
-                          order.status === 'Processing' ? 'bg-blue-50 text-blue-600' :
-                          order.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
-                          order.status === 'Delivered' ? 'bg-green-50 text-green-600' :
-                          'bg-red-50 text-red-600'
-                        }`}
-                        value={order.status}
-                        onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
-                        disabled={isUpdatingStatus}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Processing">Processing</option>
-                        <option value="Dispatched">Dispatched</option>
-                        <option value="Delivered">Delivered</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
+                      {order.status === 'Cancelled' ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="badge bg-red-100 text-red-600 text-[10px] font-semibold">Cancelled</span>
+                          {order.cancelledBy === 'admin' && (
+                            <span className="badge bg-red-50 text-red-400 text-[9px]">By Admin</span>
+                          )}
+                          {order.cancelledBy === 'customer' && (
+                            <span className="badge bg-orange-50 text-orange-400 text-[9px]">Customer Request</span>
+                          )}
+                        </div>
+                      ) : (
+                        <select
+                          className={`text-xs p-1.5 rounded-full border border-border cursor-pointer font-medium ${
+                            order.status === 'Processing' ? 'bg-blue-50 text-blue-600' :
+                            order.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
+                            'bg-green-50 text-green-600'
+                          }`}
+                          value={order.status}
+                          onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                          disabled={isUpdatingStatus}
+                        >
+                          <option value="Processing">Processing</option>
+                          <option value="Dispatched">Dispatched</option>
+                        </select>
+                      )}
                     </td>
                     <td className="text-right">
-                      <button onClick={() => setSelectedOrder(order)} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 ml-auto">
-                        <Eye size={14} /> View
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {order.status !== 'Cancelled' && order.status !== 'Delivered' && (
+                          <button onClick={() => setCancelModal({ isOpen: true, orderId: order._id })} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 text-red-500 hover:bg-red-50 hover:text-red-600 border-red-100 font-medium whitespace-nowrap">
+                            <X size={14} /> Cancel
+                          </button>
+                        )}
+                        <button onClick={() => setSelectedOrder(order)} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 whitespace-nowrap">
+                          <Eye size={14} /> View
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -296,38 +312,23 @@ const OrdersPage = () => {
 
                    <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
                      {selectedOrder.invoice ? (
-                       <>
-                         <div className="flex gap-2">
-                           <button onClick={() => handleDownloadInvoice(selectedOrder.invoice)} className="btn-primary flex-1 py-1.5 px-3 text-xs text-center">
-                             Download PDF
-                           </button>
-                           <button onClick={() => handleViewInvoice(selectedOrder.invoice)} className="btn-secondary flex-1 py-1.5 px-3 text-xs text-center">
-                             View PDF
-                           </button>
-                         </div>
-                         <div className="mt-2 text-center">
-                           <p className="text-xs text-text-secondary mb-1">Need a different invoice type?</p>
-                           {selectedOrder.invoice.type === 'normal' ? (
-                             <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'gst')} className="text-primary text-xs hover:underline">
-                               Generate GST Invoice Instead
-                             </button>
-                           ) : (
-                             <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'normal')} className="text-primary text-xs hover:underline">
-                               Generate Standard Invoice Instead
-                             </button>
-                           )}
-                         </div>
-                       </>
-                     ) : (
-                       <>
-                         <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'gst')} className="btn-primary py-1.5 px-3 text-xs w-full text-center">
-                           Generate GST Invoice
-                         </button>
-                         <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'normal')} className="btn-secondary py-1.5 px-3 text-xs w-full text-center">
-                           Generate Standard Invoice
-                         </button>
-                       </>
-                     )}
+                        <>
+                          <div className="flex gap-2">
+                            <button onClick={() => handleDownloadInvoice(selectedOrder.invoice)} className="btn-primary flex-1 py-1.5 px-3 text-xs text-center">
+                              Download PDF
+                            </button>
+                            <button onClick={() => handleViewInvoice(selectedOrder.invoice)} className="btn-secondary flex-1 py-1.5 px-3 text-xs text-center">
+                              View PDF
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleGenerateInvoice(selectedOrder._id, 'normal')} className="btn-primary py-1.5 px-3 text-xs w-full text-center">
+                            Generate Standard Invoice
+                          </button>
+                        </>
+                      )}
                    </div>
                 </div>
               </div>
@@ -404,15 +405,19 @@ const OrdersPage = () => {
                 )}
                 {['Pending', 'Processing'].includes(selectedOrder.status) && (
                   <button disabled={isUpdatingStatus} onClick={() => {
-                    const reason = window.prompt("Reason for cancellation:");
-                    if(reason) {
-                       API.put(`/orders/${selectedOrder._id}/status`, { status: 'Cancelled', cancellationReason: reason })
+                    const reason = window.prompt("Reason for cancellation (will be shown to customer):");
+                    if (reason) {
+                       API.put(`/orders/${selectedOrder._id}/status`, { 
+                         status: 'Cancelled', 
+                         reason,
+                         cancelledBy: 'admin'
+                       })
                          .then(res => {
                            toast.success('Order cancelled');
                            setSelectedOrder(res.data.data);
                            setOrders(orders.map(o => o._id === selectedOrder._id ? res.data.data : o));
                          })
-                         .catch(err => toast.error('Failed to cancel order'));
+                         .catch(() => toast.error('Failed to cancel order'));
                     }
                   }} className="btn-danger flex items-center gap-2">
                     <AlertCircle size={16}/> Cancel Order
@@ -425,6 +430,18 @@ const OrdersPage = () => {
         </div>,
         document.body
       )}
+
+      <ConfirmModal
+        isOpen={cancelModal.isOpen}
+        onClose={() => setCancelModal({ isOpen: false, orderId: null })}
+        onConfirm={() => {
+          handleUpdateStatus(cancelModal.orderId, 'Cancelled');
+          setCancelModal({ isOpen: false, orderId: null });
+        }}
+        title="Cancel Order"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmText="Cancel Order"
+      />
     </div>
   );
 };

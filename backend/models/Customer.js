@@ -6,8 +6,9 @@ const addressSchema = new mongoose.Schema(
     city: { type: String, trim: true },
     state: { type: String, trim: true },
     pincode: { type: String, trim: true },
-  },
-  { _id: false }
+    isDefault: { type: Boolean, default: false },
+    label: { type: String, enum: ['Home', 'Work', 'Other'], default: 'Home' },
+  }
 );
 
 const customerSchema = new mongoose.Schema(
@@ -37,6 +38,11 @@ const customerSchema = new mongoose.Schema(
     active: {
       type: Boolean,
       default: true,
+    },
+    source: {
+      type: String,
+      enum: ['website', 'admin'],
+      default: 'website'
     },
     totalOrders: {
       type: Number,

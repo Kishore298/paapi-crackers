@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Search, Bell, Store } from 'lucide-react';
+import { Menu, Search, Bell, Store, Smartphone } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import API from '../../api/axios';
 import toast from 'react-hot-toast';
+import { requestFirebaseToken } from '../../firebase';
+import useNotificationStore from '../../store/notificationStore';
 
 const Topbar = ({ setMobileOpen }) => {
   const [onlineSalesEnabled, setOnlineSalesEnabled] = useState(true);
+  const [permission, setPermission] = useState(Notification.permission);
+  const unreadCount = useNotificationStore(state => state.unreadCount);
 
   useEffect(() => {
     API.get('/settings').then(res => setOnlineSalesEnabled(res.data.data.onlineSalesEnabled)).catch(() => {});
@@ -19,6 +24,27 @@ const Topbar = ({ setMobileOpen }) => {
     } catch (error) {
       setOnlineSalesEnabled(!newValue);
       toast.error('Failed to update status');
+    }
+  };
+
+  const handleEnablePush = async () => {
+    try {
+      const token = await requestFirebaseToken();
+      if (token) {
+        await API.put('/auth/fcm-token', { fcmToken: token });
+        setPermission('granted');
+        toast.success('Admin push notifications enabled!');
+      } else {
+        setPermission(Notification.permission);
+        if (Notification.permission === 'denied') {
+          toast.error('Notifications are blocked by your browser.');
+        } else {
+          toast.error('Failed to enable push notifications.');
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('An error occurred.');
     }
   };
 
@@ -44,6 +70,15 @@ const Topbar = ({ setMobileOpen }) => {
       </div>
 
       <div className="flex items-center gap-4">
+        {permission !== 'granted' && (
+          <button 
+            onClick={handleEnablePush}
+            className="hidden sm:flex items-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200 text-sm font-medium transition-colors"
+          >
+            <Smartphone size={16} /> Enable Push
+          </button>
+        )}
+
         <label className="flex items-center gap-2 cursor-pointer bg-gray-50 px-3 py-1.5 rounded-xl border border-border">
           <Store size={16} className={onlineSalesEnabled ? 'text-success' : 'text-text-secondary'} />
           <span className="text-sm font-medium text-text-primary hidden md:block">
@@ -55,10 +90,12 @@ const Topbar = ({ setMobileOpen }) => {
           </div>
         </label>
 
-        <button className="p-2 text-text-secondary hover:bg-gray-100 rounded-xl relative transition-colors">
+        <Link to="/notifications" className="p-2 text-text-secondary hover:bg-gray-100 rounded-xl relative transition-colors">
           <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-discount rounded-full border-2 border-white"></span>
-        </button>
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-discount rounded-full border-2 border-white"></span>
+          )}
+        </Link>
       </div>
     </header>
   );

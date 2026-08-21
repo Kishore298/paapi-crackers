@@ -18,7 +18,7 @@ const ProductToolbar = ({
 
   return (
     <>
-      <div className="sticky top-20 z-30 w-full max-w-7xl mx-auto px-4 sm:px-6 pointer-events-none mt-6 mb-8">
+      <div className="sticky top-20 z-30 w-full max-w-7xl mx-auto px-4 sm:px-6 pointer-events-none mt-2 mb-4">
         <div className="bg-white rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 px-3 sm:px-5 py-1.5 flex items-center justify-between pointer-events-auto w-full">
           <div className="flex items-center gap-1 sm:gap-2 min-w-0">
 

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 const Order = require('../models/Order');
 const POSSale = require('../models/POSSale');
@@ -21,16 +22,7 @@ exports.generateInvoice = async (req, res, next) => {
 
     let invoice;
     if (type === 'gst') {
-      // For GST invoice, GSTIN might be required
-      const gstinValue = gstin || order?.gstin || posSale?.gstin;
-
-      invoice = await invoiceService.generateGSTInvoice({
-        order,
-        posSale,
-        gstin: gstinValue,
-        customerDetails,
-        generatedBy: req.user._id,
-      });
+      return res.status(400).json({ success: false, message: 'GST Invoices must be generated from the GST Billing page.' });
     } else {
       invoice = await invoiceService.generateNormalInvoice({
         order,
@@ -38,6 +30,27 @@ exports.generateInvoice = async (req, res, next) => {
         generatedBy: req.user._id,
       });
     }
+
+    res.status(201).json({ success: true, data: invoice });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/invoices/standalone-gst
+exports.generateStandaloneInvoice = async (req, res, next) => {
+  try {
+    const { items, customerDetails } = req.body;
+
+    if (!items || !items.length) {
+      return res.status(400).json({ success: false, message: 'Items are required.' });
+    }
+
+    const invoice = await invoiceService.generateStandaloneGSTInvoice({
+      items,
+      customerDetails,
+      generatedBy: req.user._id,
+    });
 
     res.status(201).json({ success: true, data: invoice });
   } catch (error) {
@@ -109,7 +122,10 @@ exports.getInvoice = async (req, res, next) => {
 // GET /api/invoices/:id/pdf
 exports.downloadInvoicePDF = async (req, res, next) => {
   try {
-    const invoice = await Invoice.findById(req.params.id);
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+    const query = isObjectId ? { _id: req.params.id } : { invoiceNumber: req.params.id };
+
+    const invoice = await Invoice.findOne(query);
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found.' });
     }

@@ -49,7 +49,7 @@ const OrderDetailsPage = () => {
         
         {order.invoice && (
           <a 
-            href={`${API_BASE_URL}/invoices/${order.invoice._id}/pdf`}
+            href={`${API_BASE_URL}/invoices/${order.invoice.invoiceNumber}/pdf`}
             target="_blank"
             rel="noopener noreferrer"
             className="btn-outline inline-flex items-center justify-center gap-2 h-10"

@@ -4,6 +4,7 @@ import { ShoppingCart, ArrowRight, Trash2, ArrowLeft, X } from 'lucide-react';
 import useCartStore from '../store/cartStore';
 import useAuthStore from '../store/authStore';
 import QuantityControl from '../components/common/QuantityControl';
+import ConfirmModal from '../components/common/ConfirmModal';
 import { formatCurrency } from '../utils/formatCurrency';
 
 const CartPage = ({ settings }) => {
@@ -11,6 +12,7 @@ const CartPage = ({ settings }) => {
   const { customer } = useAuthStore();
   const { items, clearCart, removeItem, incrementItem, decrementItem } = useCartStore();
   const [isClearing, setIsClearing] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalDiscount = items.reduce((sum, item) => {
@@ -27,13 +29,15 @@ const CartPage = ({ settings }) => {
   const maxOrderAmount = settings?.orders?.maxOrderAmount || 0;
 
   const handleClearCart = () => {
-    if (window.confirm('Are you sure you want to clear your cart?')) {
-      setIsClearing(true);
-      setTimeout(() => {
-        clearCart();
-        setIsClearing(false);
-      }, 300); // small delay for animation
-    }
+    setShowClearConfirm(true);
+  };
+
+  const executeClearCart = () => {
+    setIsClearing(true);
+    setTimeout(() => {
+      clearCart();
+      setIsClearing(false);
+    }, 300); // small delay for animation
   };
 
   const handleCheckout = () => {
@@ -203,6 +207,15 @@ const CartPage = ({ settings }) => {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={executeClearCart}
+        title="Clear Cart"
+        message="Are you sure you want to clear your cart? All items will be removed."
+        confirmText="Clear Cart"
+      />
     </div>
   );
 };

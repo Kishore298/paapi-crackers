@@ -27,7 +27,11 @@ const MobileMenu = ({ open, onClose, navLinks, settings }) => {
         
         <div className="p-4 flex items-center justify-between border-b border-border">
           <span className="text-lg font-bold text-text-primary">
-            {settings?.business?.name || 'Menu'}
+            {settings?.business?.logo?.url ? (
+              <img src={settings.business.logo.url} alt={settings.business.name || 'Logo'} className="h-8 object-contain" />
+            ) : (
+              settings?.business?.name || 'Paapi Crackers'
+            )}
           </span>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-50 transition-all">
             <X size={20} />

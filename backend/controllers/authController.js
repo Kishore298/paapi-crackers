@@ -110,3 +110,16 @@ exports.changePassword = async (req, res, next) => {
     next(error);
   }
 };
+
+// PUT /api/auth/fcm-token
+exports.updateFcmToken = async (req, res, next) => {
+  try {
+    const { fcmToken } = req.body;
+    
+    await User.findByIdAndUpdate(req.user._id, { fcmToken });
+    
+    res.json({ success: true, message: 'FCM token updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};

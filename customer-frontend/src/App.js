@@ -19,7 +19,6 @@ import OrderSuccessPage from './pages/OrderSuccessPage';
 import MyOrdersPage from './pages/MyOrdersPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
 import NotificationsPage from './pages/NotificationsPage';
-import AboutUsPage from './pages/AboutUsPage';
 import ContactUsPage from './pages/ContactUsPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
@@ -52,7 +51,7 @@ function App() {
 
     // Socket.IO connection
     const socket = io(SOCKET_URL);
-    
+
     socket.on('connect', () => {
       if (customer?._id) {
         socket.emit('join', { customerId: customer._id });

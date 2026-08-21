@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Image as ImageIcon, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Edit2, Trash2, Image as ImageIcon, X, Barcode, Printer } from 'lucide-react';
+import JsBarcode from 'jsbarcode';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
 import { formatCurrency } from '../utils/format';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const ProductsPage = () => {
   const [products, setProducts] = useState([]);
@@ -17,6 +19,10 @@ const ProductsPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   
+  // Barcode Modal State
+  const [barcodeModalProduct, setBarcodeModalProduct] = useState(null);
+  const barcodeRef = useRef(null);
+  
   // Form State
   const [formData, setFormData] = useState({
     name: '',
@@ -30,10 +36,62 @@ const ProductsPage = () => {
   });
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (barcodeModalProduct && barcodeRef.current) {
+      JsBarcode(barcodeRef.current, barcodeModalProduct.sku, {
+        format: "CODE128",
+        lineColor: "#000",
+        width: 2,
+        height: 60,
+        displayValue: true,
+        textMargin: 4,
+        fontSize: 16,
+        margin: 10
+      });
+    }
+  }, [barcodeModalProduct]);
+
+  const handlePrintBarcode = () => {
+    if (!barcodeRef.current) return;
+    const svgData = new XMLSerializer().serializeToString(barcodeRef.current);
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print Barcode - ${barcodeModalProduct.sku}</title>
+          <style>
+            body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: sans-serif; }
+            .print-area { text-align: center; border: 1px dashed #ccc; padding: 20px; border-radius: 8px; }
+            .name { font-size: 14px; font-weight: bold; margin-bottom: 10px; max-width: 250px; }
+            @media print {
+              body { justify-content: flex-start; height: auto; }
+              .print-area { border: none; padding: 0; }
+              @page { size: auto; margin: 0mm; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-area">
+            <div class="name">${barcodeModalProduct.name}</div>
+            ${svgData}
+          </div>
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const fetchData = async () => {
     try {
@@ -117,15 +175,17 @@ const ProductsPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this product? This will break past orders referencing it.')) {
-      try {
-        await API.delete(`/products/${id}`);
-        toast.success('Product deleted');
-        fetchData();
-      } catch (error) {
-        toast.error('Failed to delete product');
-      }
+  const handleDelete = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const executeDelete = async () => {
+    try {
+      await API.delete(`/products/${confirmModal.id}`);
+      toast.success('Product deleted');
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to delete product');
     }
   };
 
@@ -219,6 +279,9 @@ const ProductsPage = () => {
                     </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => setBarcodeModalProduct(product)} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Print Barcode">
+                          <Barcode size={16} />
+                        </button>
                         <button onClick={() => openModal(product)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
                           <Edit2 size={16} />
                         </button>
@@ -326,6 +389,36 @@ const ProductsPage = () => {
           </div>
         </div>
       )}
+
+      {/* Barcode Print Modal */}
+      {barcodeModalProduct && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center flex flex-col items-center">
+            <h3 className="text-lg font-bold text-text-primary mb-1">Product Barcode</h3>
+            <p className="text-sm text-text-secondary mb-6 line-clamp-1">{barcodeModalProduct.name}</p>
+            
+            <div className="bg-white p-4 border border-border rounded-xl mb-6 shadow-sm inline-block">
+              <svg ref={barcodeRef}></svg>
+            </div>
+            
+            <div className="flex gap-3 w-full">
+              <button onClick={() => setBarcodeModalProduct(null)} className="btn-secondary flex-1">Close</button>
+              <button onClick={handlePrintBarcode} className="btn-primary flex-1 flex items-center justify-center gap-2">
+                <Printer size={18} /> Print
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={executeDelete}
+        title="Delete Product"
+        message="Are you sure you want to delete this product? This will break past orders referencing it. This action cannot be undone."
+        confirmText="Delete"
+      />
     </div>
   );
 };

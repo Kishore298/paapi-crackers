@@ -19,7 +19,7 @@ const HomePage = ({ settings }) => {
   // Filters state
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState('list');
   const [filters, setFilters] = useState({ priceRange: '', availability: '' });
 
   // Pagination state (for simplicity, loading all in one go or using client side filtering for a smooth feel)
@@ -114,7 +114,7 @@ const HomePage = ({ settings }) => {
   return (
     <div className="pb-24">
       {/* Banner Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-2">
         <Banner banners={banners} />
       </div>
 
@@ -133,7 +133,7 @@ const HomePage = ({ settings }) => {
       />
 
       {/* Product List */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-8">
         
         {filteredProducts.length === 0 && (!showCombos) ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-border">

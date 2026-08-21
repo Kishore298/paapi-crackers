@@ -208,8 +208,111 @@ const generateGSTInvoice = async ({ order, posSale, gstin, customerDetails, gene
   return invoice;
 };
 
+/**
+ * Generate Standalone GST invoice (18% flat rate, independent of Order/POS)
+ */
+const generateStandaloneGSTInvoice = async ({ items, customerDetails, generatedBy }) => {
+  const settings = await Settings.getSettings();
+  const invoiceNumber = await generateInvoiceNumber(settings);
+  
+  const customerState = customerDetails?.state || '';
+  const businessState = settings.business?.state || '';
+  
+  const gstRate = 18;
+  const isIntra = gstService.isIntraState(businessState, customerState);
+
+  let totalTaxable = 0;
+  let totalCGST = 0;
+  let totalSGST = 0;
+  let totalIGST = 0;
+
+  const invoiceItems = items.map((item) => {
+    const qty = Number(item.quantity) || 1;
+    const rate = Number(item.rate) || 0;
+    const taxableValue = qty * rate;
+    
+    let cgstRate = 0, cgstAmount = 0, sgstRate = 0, sgstAmount = 0, igstRate = 0, igstAmount = 0;
+    let totalTax = 0;
+
+    if (isIntra) {
+      cgstRate = gstRate / 2;
+      sgstRate = gstRate / 2;
+      cgstAmount = Math.round((taxableValue * cgstRate / 100) * 100) / 100;
+      sgstAmount = Math.round((taxableValue * sgstRate / 100) * 100) / 100;
+      totalTax = cgstAmount + sgstAmount;
+    } else {
+      igstRate = gstRate;
+      igstAmount = Math.round((taxableValue * igstRate / 100) * 100) / 100;
+      totalTax = igstAmount;
+    }
+
+    totalTaxable += taxableValue;
+    totalCGST += cgstAmount;
+    totalSGST += sgstAmount;
+    totalIGST += igstAmount;
+
+    return {
+      productSnapshot: { name: item.name },
+      quantity: qty,
+      rate: rate,
+      taxableValue,
+      cgstRate,
+      cgstAmount,
+      sgstRate,
+      sgstAmount,
+      igstRate,
+      igstAmount,
+      total: taxableValue + totalTax
+    };
+  });
+
+  totalTaxable = Math.round(totalTaxable * 100) / 100;
+  totalCGST = Math.round(totalCGST * 100) / 100;
+  totalSGST = Math.round(totalSGST * 100) / 100;
+  totalIGST = Math.round(totalIGST * 100) / 100;
+  const overallTax = Math.round((totalCGST + totalSGST + totalIGST) * 100) / 100;
+  const grandTotal = Math.round(totalTaxable + overallTax);
+
+  const customerSnapshot = {
+    name: customerDetails?.name || '',
+    phone: customerDetails?.phone || '',
+    address: customerDetails?.address || '',
+    city: customerDetails?.city || '',
+    state: customerState,
+    pincode: customerDetails?.pincode || '',
+    gstin: customerDetails?.gstin || 'URP',
+  };
+
+  const invoice = await Invoice.create({
+    invoiceNumber,
+    type: 'gst',
+    businessSnapshot: {
+      name: settings.business.name,
+      gstin: settings.business.gstin,
+      address: settings.business.address,
+      city: settings.business.city,
+      state: settings.business.state,
+      pincode: settings.business.pincode,
+      phone: settings.business.phone,
+      email: settings.business.email,
+    },
+    customerSnapshot,
+    items: invoiceItems,
+    taxableAmount: totalTaxable,
+    cgstTotal: totalCGST,
+    sgstTotal: totalSGST,
+    igstTotal: totalIGST,
+    totalTax: overallTax,
+    grandTotal: grandTotal,
+    generatedBy,
+  });
+
+  return invoice;
+};
+
 module.exports = {
   generateNormalInvoice,
   generateGSTInvoice,
+  generateStandaloneGSTInvoice,
   generateInvoiceNumber,
 };

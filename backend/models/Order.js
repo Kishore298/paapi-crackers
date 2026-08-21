@@ -119,6 +119,10 @@ const orderSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    cancelledBy: {
+      type: String,
+      enum: ['customer', 'admin'],
+    },
     cancelledAt: {
       type: Date,
     },

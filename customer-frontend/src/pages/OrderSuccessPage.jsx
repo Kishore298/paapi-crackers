@@ -54,7 +54,7 @@ const OrderSuccessPage = () => {
           Thank you for your purchase. Your order <span className="font-bold text-text-primary">#{order.orderNumber}</span> has been received.
         </p>
         <div className="inline-flex flex-col sm:flex-row items-center gap-3">
-          <Link to={`/order/${order._id}`} className="btn-primary w-full sm:w-auto">
+          <Link to={`/order/${order.orderNumber}`} className="btn-primary w-full sm:w-auto">
             Track Order
           </Link>
           <Link to="/" className="btn-outline w-full sm:w-auto inline-flex justify-center items-center gap-2">

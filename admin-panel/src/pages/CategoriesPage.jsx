@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 const CategoriesPage = () => {
   const [categories, setCategories] = useState([]);
@@ -12,6 +13,7 @@ const CategoriesPage = () => {
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '', active: true });
   const [submitting, setSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, id: null });
 
   useEffect(() => {
     fetchCategories();
@@ -66,15 +68,17 @@ const CategoriesPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this category? Products in this category might be affected.')) {
-      try {
-        await API.delete(`/categories/${id}`);
-        toast.success('Category deleted');
-        fetchCategories();
-      } catch (error) {
-        toast.error('Failed to delete category');
-      }
+  const handleDelete = (id) => {
+    setConfirmModal({ isOpen: true, id });
+  };
+
+  const executeDelete = async () => {
+    try {
+      await API.delete(`/categories/${confirmModal.id}`);
+      toast.success('Category deleted');
+      fetchCategories();
+    } catch (error) {
+      toast.error('Failed to delete category');
     }
   };
 
@@ -168,6 +172,15 @@ const CategoriesPage = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, id: null })}
+        onConfirm={executeDelete}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? Products in this category might be affected. This action cannot be undone."
+        confirmText="Delete"
+      />
     </div>
   );
 };

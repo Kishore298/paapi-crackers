@@ -1,197 +1,190 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  TrendingUp, ShoppingBag, AlertTriangle, IndianRupee,
-  Activity, ArrowRight
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend
-} from 'recharts';
+import { useSearchParams } from 'react-router-dom';
+import { Download, Calendar, IndianRupee, ShoppingBag, Package } from 'lucide-react';
+import toast from 'react-hot-toast';
 import API from '../api/axios';
-import { formatCurrency, formatNumber } from '../utils/format';
+import { formatCurrency, formatNumber, formatDate } from '../utils/format';
+import { utils, writeFile } from 'xlsx';
 
 const DashboardPage = () => {
-  const [stats, setStats] = useState(null);
-  const [charts, setCharts] = useState(null);
+  const [searchParams] = useSearchParams();
+  const periodParam = searchParams.get('period');
+
+  const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState(() => {
+    if (periodParam === 'today') {
+      return new Date().toISOString().split('T')[0];
+    }
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    const fetchReport = async () => {
+      try {
+        setLoading(true);
+        const { data } = await API.get(`/reports/sales?startDate=${startDate}&endDate=${endDate}`);
+        setReportData(data.data);
+      } catch (error) {
+        toast.error('Failed to load report');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [statsRes, chartsRes] = await Promise.all([
-        API.get('/dashboard'),
-        API.get('/dashboard/charts?period=30')
-      ]);
-      setStats(statsRes.data.data);
-      setCharts(chartsRes.data.data);
-    } catch (error) {
-      console.error('Failed to fetch dashboard data', error);
-    } finally {
-      setLoading(false);
-    }
+    fetchReport();
+  }, [startDate, endDate]);
+
+  const handleExportExcel = () => {
+    if (!reportData || reportData.dailySales.length === 0) return toast.error('No data to export');
+
+    const wb = utils.book_new();
+    
+    // Daily Sales Sheet
+    const salesWs = utils.json_to_sheet(reportData.dailySales.map(day => ({
+      Date: day._id,
+      Orders: day.orders,
+      'Revenue (₹)': day.revenue
+    })));
+    utils.book_append_sheet(wb, salesWs, "Daily Sales");
+
+    // Product Sales Sheet
+    const prodWs = utils.json_to_sheet(reportData.productSales.map(prod => ({
+      Product: prod.name,
+      SKU: prod.sku,
+      'Quantity Sold': prod.quantitySold,
+      'Revenue Generated (₹)': prod.revenueGenerated
+    })));
+    utils.book_append_sheet(wb, prodWs, "Product Performance");
+
+    writeFile(wb, `Sales_Report_${startDate}_to_${endDate}.xlsx`);
   };
-
-  if (loading) {
-    return <div className="flex justify-center items-center h-64"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
-  }
-
-  const COLORS = ['#7F44C2', '#159447', '#E83E6F', '#FFB020', '#1E1E2D'];
-
-  const StatCard = ({ title, value, subtext, icon: Icon, color, linkTo }) => (
-    <div className="card p-5 hover:shadow-card-hover transition-all">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <p className="text-sm font-medium text-text-secondary">{title}</p>
-          <h3 className="text-2xl font-bold text-text-primary mt-1">{value}</h3>
-        </div>
-        <div className={`p-3 rounded-xl ${color}`}>
-          <Icon size={24} />
-        </div>
-      </div>
-      <div className="flex justify-between items-center text-sm">
-        <span className="text-text-secondary">{subtext}</span>
-        {linkTo && (
-          <Link to={linkTo} className="text-primary hover:underline font-medium flex items-center gap-1">
-            View <ArrowRight size={14} />
-          </Link>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
-          <p className="text-sm text-text-secondary">Overview of your store's performance</p>
+          <p className="text-sm text-text-secondary">Analyze your business performance</p>
         </div>
-        <button onClick={fetchDashboardData} className="btn-secondary flex items-center gap-2">
-          <Activity size={16} /> Refresh
-        </button>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white border border-border rounded-xl p-1">
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)}
+              className="text-sm px-2 py-1 outline-none text-text-primary bg-transparent"
+            />
+            <span className="text-text-secondary text-sm">to</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)}
+              className="text-sm px-2 py-1 outline-none text-text-primary bg-transparent"
+            />
+          </div>
+          <button onClick={handleExportExcel} className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20">
+            <Download size={16}/> Export Excel
+          </button>
+        </div>
       </div>
 
-      {/* Top Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Revenue" 
-          value={formatCurrency(stats?.totalSales)} 
-          subtext="GST Exclusive"
-          icon={IndianRupee} 
-          color="bg-primary-lighter text-primary"
-          linkTo="/reports"
-        />
-        <StatCard 
-          title="Today's Sales" 
-          value={formatCurrency(stats?.todaySales)} 
-          subtext={`${stats?.todayOrders} orders today`}
-          icon={TrendingUp} 
-          color="bg-green-100 text-green-700"
-          linkTo="/reports?period=today"
-        />
-        <StatCard 
-          title="Active Orders" 
-          value={formatNumber(stats?.newOrders)} 
-          subtext="Pending processing"
-          icon={ShoppingBag} 
-          color="bg-blue-100 text-blue-700"
-          linkTo="/orders"
-        />
-        <StatCard 
-          title="Inventory Alerts" 
-          value={formatNumber(stats?.lowStock + stats?.outOfStock)} 
-          subtext={`${stats?.outOfStock} out of stock`}
-          icon={AlertTriangle} 
-          color="bg-red-100 text-red-700"
-          linkTo="/stock"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales Chart */}
-        <div className="card p-5 lg:col-span-2">
-          <h3 className="text-lg font-bold text-text-primary mb-6">Sales Overview (Last 30 Days)</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={charts?.salesByDate || []} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7F44C2" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#7F44C2" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EDEDED" />
-                <XAxis dataKey="_id" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717A' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717A' }} tickFormatter={(value) => `₹${value/1000}k`} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}
-                  formatter={(value) => [formatCurrency(value), 'Sales']}
-                  labelStyle={{ color: '#71717A', marginBottom: '4px' }}
-                />
-                <Area type="monotone" dataKey="totalSales" stroke="#7F44C2" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Payment Breakdown */}
-        <div className="card p-5">
-          <h3 className="text-lg font-bold text-text-primary mb-6">Payment Methods</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={charts?.paymentBreakdown || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="total"
-                  nameKey="_id"
-                >
-                  {(charts?.paymentBreakdown || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" formatter={(value) => <span className="capitalize text-text-secondary font-medium">{value}</span>} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 pt-4 border-t border-border">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-text-secondary">Pending Collections</span>
-              <span className="font-bold text-discount">{stats?.pendingPayments} Orders</span>
+      {loading ? (
+        <div className="py-20 text-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div></div>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="card p-5">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-medium text-text-secondary">Total Revenue</p>
+                <div className="p-2 bg-primary-lighter text-primary rounded-lg"><IndianRupee size={18}/></div>
+              </div>
+              <h3 className="text-2xl font-bold text-text-primary">{formatCurrency(reportData?.summary?.totalRevenue)}</h3>
+              <p className="text-xs text-text-secondary mt-1">In selected period</p>
+            </div>
+            
+            <div className="card p-5">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-medium text-text-secondary">Total Orders</p>
+                <div className="p-2 bg-blue-100 text-blue-700 rounded-lg"><ShoppingBag size={18}/></div>
+              </div>
+              <h3 className="text-2xl font-bold text-text-primary">{formatNumber(reportData?.summary?.totalOrders)}</h3>
+              <p className="text-xs text-text-secondary mt-1">Successfully completed</p>
+            </div>
+            
+            <div className="card p-5">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-medium text-text-secondary">Items Sold</p>
+                <div className="p-2 bg-green-100 text-green-700 rounded-lg"><Package size={18}/></div>
+              </div>
+              <h3 className="text-2xl font-bold text-text-primary">{formatNumber(reportData?.summary?.totalItemsSold)}</h3>
+              <p className="text-xs text-text-secondary mt-1">Total units dispatched</p>
             </div>
           </div>
-        </div>
 
-        {/* Top Products */}
-        <div className="card p-5 lg:col-span-3">
-          <h3 className="text-lg font-bold text-text-primary mb-6">Top Selling Products</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={charts?.productPerformance || []} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EDEDED" />
-                <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={(value) => `₹${value/1000}k`} />
-                <YAxis dataKey="_id" type="category" axisLine={false} tickLine={false} width={150} tick={{ fontSize: 12, fill: '#18181B' }} />
-                <Tooltip 
-                  cursor={{ fill: '#FAFAFA' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}
-                  formatter={(value) => [formatCurrency(value), 'Revenue']}
-                />
-                <Bar dataKey="totalRevenue" fill="#7F44C2" radius={[0, 4, 4, 0]} barSize={24} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Daily Sales Table */}
+            <div className="card p-5">
+              <h3 className="font-bold text-lg text-text-primary mb-4 flex items-center gap-2"><Calendar size={18} className="text-primary"/> Daily Breakdown</h3>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="table">
+                  <thead className="sticky top-0 bg-white shadow-sm z-10">
+                    <tr>
+                      <th>Date</th>
+                      <th>Orders</th>
+                      <th className="text-right">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData?.dailySales?.map(day => (
+                      <tr key={day._id}>
+                        <td className="font-medium text-text-primary">{formatDate(day._id)}</td>
+                        <td>{day.orders}</td>
+                        <td className="text-right font-bold text-text-primary">{formatCurrency(day.revenue)}</td>
+                      </tr>
+                    ))}
+                    {reportData?.dailySales?.length === 0 && <tr><td colSpan="3" className="text-center py-4 text-text-secondary">No data in this period</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Product Sales Table */}
+            <div className="card p-5">
+              <h3 className="font-bold text-lg text-text-primary mb-4 flex items-center gap-2"><Package size={18} className="text-primary"/> Top Products</h3>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="table">
+                  <thead className="sticky top-0 bg-white shadow-sm z-10">
+                    <tr>
+                      <th>Product</th>
+                      <th>Qty Sold</th>
+                      <th className="text-right">Generated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reportData?.productSales?.map(prod => (
+                      <tr key={prod.productId}>
+                        <td>
+                          <p className="font-medium text-text-primary text-sm line-clamp-1">{prod.name}</p>
+                          <p className="text-xs text-text-secondary">{prod.sku}</p>
+                        </td>
+                        <td>{prod.quantitySold}</td>
+                        <td className="text-right font-bold text-text-primary">{formatCurrency(prod.revenueGenerated)}</td>
+                      </tr>
+                    ))}
+                    {reportData?.productSales?.length === 0 && <tr><td colSpan="3" className="text-center py-4 text-text-secondary">No data in this period</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

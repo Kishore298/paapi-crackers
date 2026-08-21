@@ -1,17 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bell, Check, Clock } from 'lucide-react';
 import useNotificationStore from '../store/notificationStore';
 import useAuthStore from '../store/authStore';
 import API from '../api/axios';
+import { requestFirebaseToken } from '../firebase';
+import toast from 'react-hot-toast';
 
 const NotificationsPage = () => {
   const { notifications, setNotifications, markAsRead, markAllAsRead, unreadCount } = useNotificationStore();
   const { customer } = useAuthStore();
+  const [permission, setPermission] = useState(Notification.permission);
 
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const { data } = await API.get(`/notifications?recipientType=Customer&recipientId=${customer._id}`);
+        const { data } = await API.get(`/notifications?recipientType=customer&recipientId=${customer._id}`);
         setNotifications(data.data, data.unreadCount);
       } catch (error) {
         console.error('Failed to fetch notifications', error);
@@ -35,10 +38,32 @@ const NotificationsPage = () => {
   const handleMarkAllRead = async () => {
     if (!customer) return;
     try {
-      await API.put('/notifications/mark-all-read', { recipientType: 'Customer', recipientId: customer._id });
+      await API.put('/notifications/mark-all-read', { recipientType: 'customer', recipientId: customer._id });
       markAllAsRead();
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleEnablePush = async () => {
+    try {
+      const token = await requestFirebaseToken();
+      if (token) {
+        // Save to backend
+        await API.put(`/customers/${customer._id}`, { fcmToken: token });
+        setPermission('granted');
+        toast.success('Push notifications enabled!');
+      } else {
+        setPermission(Notification.permission);
+        if (Notification.permission === 'denied') {
+          toast.error('Notifications are blocked by your browser.');
+        } else {
+          toast.error('Failed to enable push notifications.');
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('An error occurred.');
     }
   };
 
@@ -79,6 +104,18 @@ const NotificationsPage = () => {
           </button>
         )}
       </div>
+
+      {permission !== 'granted' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-blue-900 text-sm">Stay Updated</h3>
+            <p className="text-blue-800 text-xs mt-1">Enable push notifications to get real-time updates on your orders.</p>
+          </div>
+          <button onClick={handleEnablePush} className="btn-primary text-xs py-1.5 px-3 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
+            Enable
+          </button>
+        </div>
+      )}
 
       {notifications.length === 0 ? (
         <div className="text-center py-20 card">

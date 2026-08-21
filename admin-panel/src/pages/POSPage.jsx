@@ -1,29 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Plus, Minus, X, User, Printer, Eye, Download, FileText } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, Eye, Download, Camera } from 'lucide-react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
 import { formatCurrency, formatDateTime } from '../utils/format';
 
+const CameraScanner = ({ onScan, onClose }) => {
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner('reader', {
+      qrbox: { width: 250, height: 100 },
+      fps: 5,
+    }, false);
+
+    scanner.render((text) => {
+      scanner.clear();
+      onScan(text);
+    }, (error) => {
+      // Ignore scan errors
+    });
+
+    return () => {
+      scanner.clear().catch(console.error);
+    };
+  }, [onScan]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="font-bold text-text-primary">Scan Barcode</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-xl"><X size={20} /></button>
+        </div>
+        <div className="p-4">
+          <div id="reader" className="w-full"></div>
+          <p className="text-xs text-center text-text-secondary mt-4">Point the camera at the product barcode.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const POSPage = () => {
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [loading, setLoading] = useState(true);
-  
+
   // Cart State
   const [cart, setCart] = useState([]); // { product, quantity }
   const [customerInfo, setCustomerInfo] = useState({ name: '', phone: '' });
+  const [manualDiscount, setManualDiscount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastInvoiceId, setLastInvoiceId] = useState(null);
 
   const [activeView, setActiveView] = useState('history'); // 'history' | 'billing'
-  
+
   // History State
   const [sales, setSales] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   useEffect(() => {
     if (activeView === 'history') {
@@ -90,44 +126,36 @@ const POSPage = () => {
   };
 
   const filteredSales = sales.filter(s => {
-    const matchesSearch = s.billNumber.toLowerCase().includes(historySearch.toLowerCase()) || 
-                          (s.customerName || '').toLowerCase().includes(historySearch.toLowerCase()) || 
-                          (s.customerPhone || '').includes(historySearch);
+    const matchesSearch = s.billNumber.toLowerCase().includes(historySearch.toLowerCase()) ||
+      (s.customerName || '').toLowerCase().includes(historySearch.toLowerCase()) ||
+      (s.customerPhone || '').includes(historySearch);
     const matchesPayment = paymentFilter ? s.paymentMethod === paymentFilter : true;
     return matchesSearch && matchesPayment;
   });
 
-
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    if (activeView === 'billing') {
+      fetchProducts();
+    }
+  }, [activeView]);
 
   const fetchProducts = async () => {
     try {
-      setLoading(true);
-      const [productRes, catRes] = await Promise.all([
-        API.get('/products?active=true&limit=1000'),
-        API.get('/categories')
-      ]);
+      const productRes = await API.get('/products?active=true&limit=1000');
       setProducts(productRes.data.data);
-      setCategories(catRes.data.data);
     } catch (error) {
-      toast.error('Failed to load products and categories');
-    } finally {
-      setLoading(false);
+      toast.error('Failed to load products');
     }
   };
 
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
-    const catId = typeof p.category === 'object' ? p.category?._id : p.category;
-    const matchesCategory = selectedCategory === 'All' || catId === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = search.trim().length > 0 ? products.filter(p => {
+    const term = search.toLowerCase();
+    return p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term);
+  }) : [];
 
   const addToCart = (product) => {
     if (product.stock <= 0) return toast.error('Product is out of stock');
-    
+
     setCart(prev => {
       const existing = prev.find(item => item.product._id === product._id);
       if (existing) {
@@ -135,14 +163,15 @@ const POSPage = () => {
           toast.error('Maximum stock reached');
           return prev;
         }
-        return prev.map(item => 
-          item.product._id === product._id 
+        return prev.map(item =>
+          item.product._id === product._id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
       return [...prev, { product, quantity: 1 }];
     });
+    setSearch(''); // clear search after adding
   };
 
   const updateQuantity = (productId, delta) => {
@@ -164,7 +193,39 @@ const POSPage = () => {
     setCart(prev => prev.filter(item => item.product._id !== productId));
   };
 
+  const handleCameraScan = async (decodedText) => {
+    setIsCameraOpen(false);
+    try {
+      const { data } = await API.get(`/products/lookup/${decodedText.trim()}`);
+      if (data.data) {
+        addToCart(data.data);
+        toast.success(`Added ${data.data.name}`);
+      }
+    } catch (error) {
+      toast.error('Product not found for scanned barcode');
+    }
+  };
+
+  const handlePhoneBlur = async () => {
+    if (customerInfo.phone && customerInfo.phone.length >= 10) {
+      try {
+        const { data } = await API.get(`/customers/search?phone=${customerInfo.phone}`);
+        if (data.data && data.data.length > 0) {
+          const cust = data.data[0];
+          setCustomerInfo(prev => ({
+            ...prev,
+            name: cust.name || prev.name
+          }));
+          toast.success('Customer found');
+        }
+      } catch (error) {
+        // Not found is fine
+      }
+    }
+  };
+
   const subtotal = cart.reduce((sum, item) => sum + (item.product.discountPrice || item.product.mrp) * item.quantity, 0);
+  const grandTotal = Math.max(0, subtotal - (Number(manualDiscount) || 0));
 
   const handleCheckout = async (invoiceType) => {
     if (cart.length === 0) return toast.error('Cart is empty');
@@ -172,7 +233,7 @@ const POSPage = () => {
 
     try {
       setIsProcessing(true);
-      
+
       const payload = {
         customerName: customerInfo.name,
         customerPhone: customerInfo.phone,
@@ -180,26 +241,29 @@ const POSPage = () => {
           productId: item.product._id,
           quantity: item.quantity
         })),
-        paymentMethod: 'cash',
-        billType: invoiceType
+        paymentMethod: paymentMethod,
+        billType: invoiceType,
+        manualDiscount: Number(manualDiscount) || 0
       };
 
       const saleRes = await API.post('/pos/sale', payload);
       const posSaleId = saleRes.data.data._id;
-      
+
       const invoiceRes = await API.post('/invoices/generate', {
         posSaleId,
         type: invoiceType,
         customerDetails: customerInfo
       });
       const invoiceId = invoiceRes.data.data._id;
-      
+
       setLastInvoiceId(invoiceId);
       toast.success('Sale & Invoice completed successfully!');
-      
+
       // Reset
       setCart([]);
       setCustomerInfo({ name: '', phone: '' });
+      setManualDiscount(0);
+      setPaymentMethod('cash');
       fetchProducts(); // Refresh stock
 
     } catch (error) {
@@ -240,7 +304,6 @@ const POSPage = () => {
     }
   };
 
-  
   if (activeView === 'history') {
     return (
       <div className="space-y-6">
@@ -259,16 +322,16 @@ const POSPage = () => {
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search by Bill No, Name, or Phone..." 
+              <input
+                type="text"
+                placeholder="Search by Bill No, Name, or Phone..."
                 value={historySearch}
                 onChange={(e) => setHistorySearch(e.target.value)}
                 className="input-field pl-10"
               />
             </div>
             <div className="w-full md:w-48">
-              <select 
+              <select
                 value={paymentFilter}
                 onChange={(e) => setPaymentFilter(e.target.value)}
                 className="input-field"
@@ -329,14 +392,14 @@ const POSPage = () => {
                           {sale.invoice ? (
                             <div className="flex flex-col items-end gap-1">
                               <div className="flex items-center justify-end gap-2">
-                                <button 
+                                <button
                                   onClick={() => handleViewInvoice(sale.invoice)}
                                   className="p-1.5 text-secondary hover:bg-secondary/10 rounded transition-colors"
                                   title="View Invoice"
                                 >
                                   <Eye size={18} />
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => handleDownloadInvoice(sale.invoice)}
                                   className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors"
                                   title="Download Invoice"
@@ -344,10 +407,8 @@ const POSPage = () => {
                                   <Download size={18} />
                                 </button>
                               </div>
-                              {sale.invoice.type === 'normal' ? (
-                                <button onClick={() => handleGenerateInvoice(sale._id, 'gst')} className="text-[10px] text-primary hover:underline">+ Gen GST</button>
-                              ) : (
-                                <button onClick={() => handleGenerateInvoice(sale._id, 'normal')} className="text-[10px] text-primary hover:underline">+ Gen Std</button>
+                              {sale.invoice.type === 'normal' && (
+                                <span className="text-[10px] text-green-600">Generated</span>
                               )}
                             </div>
                           ) : (
@@ -355,7 +416,6 @@ const POSPage = () => {
                               <span className="text-xs text-gray-400 mb-1">No Invoice</span>
                               <div className="flex gap-2">
                                 <button onClick={() => handleGenerateInvoice(sale._id, 'normal')} className="text-xs text-primary hover:underline">Gen Std</button>
-                                <button onClick={() => handleGenerateInvoice(sale._id, 'gst')} className="text-xs text-secondary hover:underline">Gen GST</button>
                               </div>
                             </div>
                           )}
@@ -372,166 +432,199 @@ const POSPage = () => {
     );
   }
 
-return (
-    
-  <div className="flex flex-col gap-4 h-[calc(100vh-6rem)]">
-    <div className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-border">
-      <h2 className="font-bold text-lg text-text-primary flex items-center gap-2"><Printer size={20} className="text-primary" /> POS Billing Terminal</h2>
-      <button onClick={() => setActiveView('history')} className="btn-secondary text-sm py-1.5 px-4">
-        Back to History
-      </button>
-    </div>
-    <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0">
-
-      
-      {/* Left: Product Selection */}
-      <div className="flex-[1.5] lg:flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
-        {lastInvoiceId && (
-          <div className="bg-green-50 border-b border-green-100 p-3 flex justify-between items-center">
-            <span className="text-green-800 text-sm font-medium">Last Sale Completed</span>
-            <div className="flex gap-2">
-              <button onClick={handleDownloadLastInvoice} className="text-xs bg-white border border-green-200 text-green-700 px-3 py-1.5 rounded hover:bg-green-50">Download PDF</button>
-              <button onClick={handleViewLastInvoice} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">View PDF</button>
-              <button onClick={() => setLastInvoiceId(null)} className="text-xs text-gray-500 hover:text-gray-700 ml-2">Dismiss</button>
-            </div>
-          </div>
-        )}
-        <div className="p-3 lg:p-4 border-b border-border bg-gray-50 flex flex-col gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search products by name or SKU..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field pl-10 w-full bg-white text-sm py-2 lg:py-2.5"
-            />
-          </div>
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            <button 
-              onClick={() => setSelectedCategory('All')} 
-              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${selectedCategory === 'All' ? 'bg-primary text-white shadow-sm' : 'bg-white border border-border text-text-secondary hover:bg-gray-100'}`}
-            >
-              All Products
-            </button>
-            {categories.map(cat => (
-              <button 
-                key={cat._id}
-                onClick={() => setSelectedCategory(cat._id)}
-                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${selectedCategory === cat._id ? 'bg-primary text-white shadow-sm' : 'bg-white border border-border text-text-secondary hover:bg-gray-100'}`}
-              >
-                {cat.name}
-              </button>
-            ))}
+  return (
+    <div className="flex flex-col gap-4 h-[calc(100vh-6rem)]">
+      {lastInvoiceId && (
+        <div className="bg-green-50 border border-green-100 p-3 rounded-xl flex justify-between items-center shadow-sm">
+          <span className="text-green-800 text-sm font-medium">Last Sale Completed Successfully</span>
+          <div className="flex gap-2">
+            <button onClick={handleDownloadLastInvoice} className="text-xs bg-white border border-green-200 text-green-700 px-3 py-1.5 rounded hover:bg-green-50">Download PDF</button>
+            <button onClick={handleViewLastInvoice} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">View PDF</button>
+            <button onClick={() => setLastInvoiceId(null)} className="text-xs text-gray-500 hover:text-gray-700 ml-2"><X size={16}/></button>
           </div>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto p-2 sm:p-4 flex flex-col gap-2 bg-gray-50/50">
-          {loading ? (
-             <div className="py-10 flex justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
-          ) : filteredProducts.map(product => (
-            <button 
-              key={product._id} 
-              onClick={() => addToCart(product)}
-              disabled={product.stock === 0}
-              className={`text-left bg-white border border-border rounded-xl p-3 flex items-center justify-between transition-all hover:border-primary/50 hover:shadow-md active:scale-95 ${product.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
-            >
-              <div className="flex-1 pr-3">
-                <p className="font-semibold text-sm text-text-primary line-clamp-1 mb-0.5">{product.name}</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-text-secondary font-mono bg-gray-100 px-1.5 py-0.5 rounded">{product.sku}</span>
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${product.stock === 0 ? 'bg-red-100 text-red-700' : 'text-green-600 bg-green-50'}`}>
-                    {product.stock} in stock
-                  </span>
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <span className="font-bold text-primary text-base block">
-                  {formatCurrency(product.discountPrice || product.mrp)}
-                </span>
-                {product.discountPrice && (
-                  <span className="text-[10px] text-text-secondary line-through block -mt-1">
-                    {formatCurrency(product.mrp)}
-                  </span>
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+        
+        {/* Left Column: Search and Cart */}
+        <div className="flex-1 flex flex-col gap-6 min-h-0">
+          
+          {/* Search Products Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-border p-5 shrink-0">
+            <h3 className="font-bold text-lg mb-4 text-text-primary">Search Products</h3>
+            <div className="relative flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search by product name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="input-field pl-10 w-full"
+                />
+                
+                {/* Search Dropdown / Results */}
+                {search.trim().length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border rounded-xl shadow-xl max-h-80 overflow-y-auto z-50 p-2">
+                    {filteredProducts.length === 0 ? (
+                      <p className="text-sm text-text-secondary text-center py-4">No products found</p>
+                    ) : (
+                      filteredProducts.map(product => (
+                        <button
+                          key={product._id}
+                          onClick={() => addToCart(product)}
+                          disabled={product.stock === 0}
+                          className={`w-full text-left p-3 rounded-lg flex items-center justify-between hover:bg-gray-50 transition-colors ${product.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                        >
+                          <div>
+                            <p className="font-semibold text-sm text-text-primary mb-0.5">{product.name}</p>
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${product.stock === 0 ? 'bg-red-100 text-red-700' : 'text-green-600 bg-green-50'}`}>
+                              {product.stock} in stock
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-primary text-sm block">
+                              {formatCurrency(product.discountPrice || product.mrp)}
+                            </span>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 )}
               </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Right: Cart & Checkout */}
-      <div className="flex-1 lg:flex-none w-full lg:w-96 flex flex-col bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
-        <div className="p-4 border-b border-border bg-gray-50 flex items-center justify-between">
-          <h2 className="font-bold text-lg flex items-center gap-2"><ShoppingCart size={20}/> Current Order</h2>
-          {cart.length > 0 && <button onClick={() => setCart([])} className="text-xs text-discount hover:underline font-medium">Clear All</button>}
-        </div>
-
-        {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400">
-              <ShoppingCart size={48} className="mb-2 opacity-50"/>
-              <p>No items in cart</p>
+              <button
+                onClick={() => setIsCameraOpen(true)}
+                className="btn-secondary px-3 flex items-center justify-center shrink-0 border-border bg-white hover:bg-gray-50"
+                title="Scan Barcode with Camera"
+              >
+                <Camera size={18} className="text-text-secondary" />
+              </button>
             </div>
-          ) : (
-            cart.map(item => (
-              <div key={item.product._id} className="flex flex-col gap-2 p-3 bg-gray-50 rounded-xl border border-border">
-                <div className="flex justify-between items-start">
-                  <p className="font-medium text-sm leading-tight pr-2">{item.product.name}</p>
-                  <button onClick={() => removeFromCart(item.product._id)} className="text-gray-400 hover:text-discount p-1 -mt-1 -mr-1"><X size={16}/></button>
+          </div>
+
+          {/* Cart Items Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex-1 flex flex-col min-h-0 overflow-hidden">
+            <h3 className="font-bold text-lg mb-4 text-text-primary">Cart Items</h3>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                  <ShoppingCart size={48} className="mb-2 opacity-30" />
+                  <p className="text-sm">No items added yet</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-sm">{formatCurrency((item.product.discountPrice || item.product.mrp) * item.quantity)}</span>
-                  
-                  <div className="flex items-center gap-2 bg-white border border-border rounded-lg p-0.5">
-                    <button onClick={() => item.quantity > 1 ? updateQuantity(item.product._id, -1) : removeFromCart(item.product._id)} className="p-1 hover:bg-gray-100 rounded text-text-secondary"><Minus size={14}/></button>
-                    <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.product._id, 1)} className="p-1 hover:bg-gray-100 rounded text-text-secondary"><Plus size={14}/></button>
+              ) : (
+                cart.map(item => (
+                  <div key={item.product._id} className="flex justify-between items-center p-3 bg-gray-50/50 rounded-xl border border-border">
+                    <div className="flex-1 pr-4">
+                      <p className="font-semibold text-sm leading-tight text-text-primary mb-1">{item.product.name}</p>
+                      <span className="text-xs text-text-secondary font-mono">{formatCurrency(item.product.discountPrice || item.product.mrp)} / unit</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 bg-white border border-border rounded-lg p-0.5 shadow-sm">
+                        <button onClick={() => item.quantity > 1 ? updateQuantity(item.product._id, -1) : removeFromCart(item.product._id)} className="p-1 hover:bg-gray-100 rounded text-text-secondary"><Minus size={14} /></button>
+                        <span className="w-6 text-center text-sm font-medium text-text-primary">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.product._id, 1)} className="p-1 hover:bg-gray-100 rounded text-text-secondary"><Plus size={14} /></button>
+                      </div>
+                      <span className="font-bold text-sm w-16 text-right text-text-primary">{formatCurrency((item.product.discountPrice || item.product.mrp) * item.quantity)}</span>
+                      <button onClick={() => removeFromCart(item.product._id)} className="text-gray-400 hover:text-discount p-1.5 hover:bg-red-50 rounded-lg transition-colors"><X size={16} /></button>
+                    </div>
                   </div>
-                </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Customer Info & Checkout */}
+        <div className="w-full lg:w-[400px] flex flex-col gap-6 shrink-0">
+          <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex flex-col">
+            <h3 className="font-bold text-lg mb-4 text-text-primary">Customer Info</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Customer Name *</label>
+                <input 
+                  type="text" 
+                  placeholder="Walk-in Customer" 
+                  value={customerInfo.name} 
+                  onChange={e => setCustomerInfo({ ...customerInfo, name: e.target.value })} 
+                  className="input-field py-2.5 text-sm" 
+                />
               </div>
-            ))
-          )}
+
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Phone (auto-fetch)</label>
+                <input 
+                  type="text" 
+                  placeholder="9876543210" 
+                  value={customerInfo.phone} 
+                  onChange={e => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                  onBlur={handlePhoneBlur}
+                  className="input-field py-2.5 text-sm" 
+                />
+              </div>
+
+
+
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Manual Discount (₹)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  placeholder="0" 
+                  value={manualDiscount || ''} 
+                  onChange={e => setManualDiscount(e.target.value)} 
+                  className="input-field py-2.5 text-sm" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">Payment Method</label>
+                <select 
+                  value={paymentMethod}
+                  onChange={e => setPaymentMethod(e.target.value)}
+                  className="input-field py-2.5 text-sm"
+                >
+                  <option value="cash">Cash</option>
+                  <option value="gpay">Google Pay</option>
+                  <option value="phonepe">PhonePe</option>
+                  <option value="paytm">Paytm</option>
+                  <option value="other">Other UPI / Card</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-border space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-text-secondary">Subtotal</span>
+                <span className="text-sm font-medium text-text-primary">{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-base text-text-primary">Total</span>
+                <span className="font-bold text-xl text-discount">{formatCurrency(grandTotal)}</span>
+              </div>
+
+              <button
+                onClick={() => handleCheckout('normal')}
+                disabled={cart.length === 0 || isProcessing}
+                className="mt-4 bg-white border-2 border-primary text-primary hover:bg-primary-lighter w-full py-2.5 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors"
+              >
+                {isProcessing ? 'Processing...' : 'Generate Bill'}
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Checkout Section */}
-        <div className="border-t border-border p-4 bg-gray-50 space-y-4">
-          <div className="space-y-3">
-            <div className="relative">
-              <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Customer Name *" value={customerInfo.name} onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})} className="input-field pl-9 text-sm py-2" />
-            </div>
-            <div className="relative">
-              <input type="text" placeholder="Phone Number *" value={customerInfo.phone} onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})} className="input-field pl-9 text-sm py-2" />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">+91</span>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-gray-200 flex justify-between items-center mb-2">
-            <span className="font-bold text-text-primary text-lg">Total</span>
-            <span className="font-bold text-primary text-2xl">{formatCurrency(subtotal)}</span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <button 
-              onClick={() => handleCheckout('normal')}
-              disabled={cart.length === 0 || isProcessing}
-              className="bg-white border-2 border-primary text-primary hover:bg-primary-lighter w-full py-2.5 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors"
-            >
-              {isProcessing ? 'Processing...' : <><Printer size={16}/> Print Invoice (Without GST)</>}
-            </button>
-            <button 
-              onClick={() => handleCheckout('gst')}
-              disabled={cart.length === 0 || isProcessing}
-              className="btn-primary w-full py-2.5 rounded-xl text-sm font-bold flex justify-center items-center gap-2"
-            >
-              {isProcessing ? 'Processing...' : <><Printer size={16}/> Print Invoice (With GST)</>}
-            </button>
-          </div>
-        </div>
+        {/* Camera Modal */}
+        {isCameraOpen && (
+          <CameraScanner
+            onScan={handleCameraScan}
+            onClose={() => setIsCameraOpen(false)}
+          />
+        )}
       </div>
-    </div>
     </div>
   );
 };

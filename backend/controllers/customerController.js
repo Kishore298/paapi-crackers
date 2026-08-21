@@ -34,6 +34,35 @@ exports.identifyCustomer = async (req, res, next) => {
   }
 };
 
+// POST /api/customers (Admin creates customer)
+exports.createCustomer = async (req, res, next) => {
+  try {
+    const { name, phone, email, gstin } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ success: false, message: 'Name and phone are required.' });
+    }
+
+    // Check if phone exists
+    let customer = await Customer.findOne({ phone: phone.trim() });
+    if (customer) {
+      return res.status(400).json({ success: false, message: 'Customer with this phone already exists.' });
+    }
+
+    customer = await Customer.create({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email ? email.trim() : undefined,
+      gstin: gstin ? gstin.trim().toUpperCase() : undefined,
+      source: 'admin'
+    });
+
+    res.status(201).json({ success: true, data: customer });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // GET /api/customers
 exports.getCustomers = async (req, res, next) => {
   try {
@@ -124,7 +153,7 @@ exports.updateCustomer = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Customer not found.' });
     }
 
-    const { name, phone, email, gstin, addresses, active } = req.body;
+    const { name, phone, email, gstin, addresses, active, fcmToken } = req.body;
 
     if (name !== undefined) customer.name = name;
     if (phone !== undefined) customer.phone = phone;
@@ -132,6 +161,7 @@ exports.updateCustomer = async (req, res, next) => {
     if (gstin !== undefined) customer.gstin = gstin;
     if (addresses !== undefined) customer.addresses = addresses;
     if (active !== undefined) customer.active = active;
+    if (fcmToken !== undefined) customer.fcmToken = fcmToken;
 
     await customer.save();
     res.json({ success: true, data: customer });

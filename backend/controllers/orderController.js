@@ -8,6 +8,7 @@ const stockService = require('../services/stockService');
 const notificationService = require('../services/notificationService');
 const emailService = require('../services/emailService');
 const gstService = require('../services/gstService');
+const { generateInvoicePDF } = require('../utils/pdfGenerator');
 
 // Helper: generate order number
 const generateOrderNumber = async () => {
@@ -243,7 +244,42 @@ exports.createOrder = async (req, res, next) => {
     // Post-transaction notifications (non-critical)
     notificationService.notifyNewOrder(order).catch(console.error);
     notificationService.notifyOrderConfirmation(order).catch(console.error);
-    emailService.sendOrderConfirmationEmail(order).catch(console.error);
+    // Generate order summary PDF and send email
+    (async () => {
+      try {
+        const settings = await Settings.getSettings();
+        const mockInvoice = {
+          invoiceNumber: `ORD-${order.orderNumber}`,
+          type: 'normal',
+          businessSnapshot: settings.business,
+          customerSnapshot: {
+            name: order.customerDetails.name,
+            phone: order.customerDetails.phone,
+            email: order.customerDetails.email,
+            address: order.shippingAddress?.address,
+            city: order.shippingAddress?.city,
+            state: order.shippingAddress?.state,
+            pincode: order.shippingAddress?.pincode,
+          },
+          items: order.items.map(item => ({
+            productSnapshot: item.productSnapshot || { name: item.name },
+            quantity: item.quantity,
+            rate: item.price,
+            total: item.total !== undefined ? item.total : item.price * item.quantity,
+          })),
+          taxableAmount: order.subtotal,
+          grandTotal: order.grandTotal,
+          discount: order.discount || 0,
+          deliveryCharge: order.deliveryCharge || 0,
+        };
+        const pdfBuffer = await generateInvoicePDF(mockInvoice);
+        await emailService.sendOrderConfirmationEmail(order, pdfBuffer);
+      } catch (err) {
+        console.error('Failed to send email with PDF:', err);
+        // Fallback without PDF
+        emailService.sendOrderConfirmationEmail(order).catch(console.error);
+      }
+    })();
 
     res.status(201).json({ success: true, data: order });
   } catch (error) {
@@ -311,7 +347,10 @@ exports.getOrders = async (req, res, next) => {
 // GET /api/orders/:id
 exports.getOrder = async (req, res, next) => {
   try {
-    const order = await Order.findById(req.params.id)
+    const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+    const query = isObjectId ? { _id: req.params.id } : { orderNumber: req.params.id };
+
+    const order = await Order.findOne(query)
       .populate('customer', 'name phone email gstin')
       .populate('invoice');
 
@@ -345,7 +384,7 @@ exports.updateOrderStatus = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { status, reason } = req.body;
+    const { status, reason, cancelledBy } = req.body;
     const order = await Order.findById(req.params.id).session(session);
 
     if (!order) {
@@ -378,6 +417,7 @@ exports.updateOrderStatus = async (req, res, next) => {
 
       order.status = 'Cancelled';
       order.cancellationReason = reason;
+      order.cancelledBy = cancelledBy || 'admin';
       order.cancelledAt = new Date();
 
       // Reverse stock - only if it was deducted and not yet reversed
@@ -409,6 +449,17 @@ exports.updateOrderStatus = async (req, res, next) => {
           session
         );
         order.stockReversed = true;
+      }
+
+      // Reverse Customer metrics
+      if (order.customer) {
+        await Customer.findByIdAndUpdate(
+          order.customer,
+          {
+            $inc: { totalOrders: -1, totalSpending: -order.grandTotal },
+          },
+          { session }
+        );
       }
 
       await order.save({ session });

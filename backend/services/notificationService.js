@@ -2,6 +2,7 @@ const Notification = require('../models/Notification');
 const { getIO } = require('../config/socket');
 const { sendPushNotification } = require('../config/firebase');
 const Customer = require('../models/Customer');
+const User = require('../models/User');
 
 /**
  * Notification Service
@@ -29,6 +30,21 @@ const sendPush = async (recipientId, title, body, data = {}) => {
     }
   } catch (error) {
     console.error('Push notification error:', error.message);
+  }
+};
+
+const sendPushToAdmins = async (title, body, data = {}) => {
+  try {
+    const admins = await User.find({ role: { $in: ['superAdmin', 'admin'] }, fcmToken: { $exists: true, $ne: null } });
+    const promises = admins.map(admin => {
+      if (admin.fcmToken) {
+        return sendPushNotification(admin.fcmToken, title, body, data);
+      }
+      return null;
+    });
+    await Promise.all(promises);
+  } catch (error) {
+    console.error('Admin Push notification error:', error.message);
   }
 };
 
@@ -66,6 +82,11 @@ const sendAll = async ({ recipientType, recipientId, type, title, message, data 
   // Send push notification for customers
   if (recipientType === 'customer' && recipientId) {
     await sendPush(recipientId, title, message, data);
+  }
+
+  // Send push notification for admins
+  if (recipientType === 'admin') {
+    await sendPushToAdmins(title, message, data);
   }
 
   return saved;

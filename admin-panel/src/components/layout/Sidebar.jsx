@@ -1,9 +1,9 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Package, Grid, Layers,
+  LayoutDashboard, Package, Grid,
   ShoppingCart, FileText, Users,
-  BarChart3, Image, LogOut, X, Shield, Box, Settings
+  Image, LogOut, X, Shield, Box, Settings
 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 
@@ -28,7 +28,6 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       items: [
         { title: 'Products', icon: Package, path: '/products', roles: ['superAdmin', 'admin', 'inventoryManager'] },
         { title: 'Categories', icon: Grid, path: '/categories', roles: ['superAdmin', 'admin', 'inventoryManager'] },
-        { title: 'Combos', icon: Layers, path: '/combos', roles: ['superAdmin', 'admin', 'inventoryManager'] },
         { title: 'Stock Manager', icon: Box, path: '/stock', roles: ['superAdmin', 'admin', 'inventoryManager'] },
       ]
     },
@@ -37,13 +36,13 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
       items: [
         { title: 'Online Orders', icon: ShoppingCart, path: '/orders', roles: ['superAdmin', 'admin', 'orderManager'] },
         { title: 'POS Billing', icon: Shield, path: '/pos', roles: ['superAdmin', 'admin', 'posOperator'] },
+        { title: 'GST Billing', icon: FileText, path: '/gst-billing', roles: ['superAdmin', 'admin', 'posOperator'] },
         { title: 'Customers', icon: Users, path: '/customers', roles: ['superAdmin', 'admin', 'orderManager'] },
       ]
     },
     {
       title: 'Admin',
       items: [
-        { title: 'Reports', icon: BarChart3, path: '/reports', roles: ['superAdmin', 'admin'] },
         { title: 'Banners', icon: Image, path: '/banners', roles: ['superAdmin', 'admin'] },
         { title: 'Settings', icon: Settings, path: '/settings', roles: ['superAdmin', 'admin'] },
       ]

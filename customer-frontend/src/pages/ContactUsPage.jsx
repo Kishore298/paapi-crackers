@@ -22,8 +22,8 @@ const ContactUsPage = ({ settings }) => {
             <Phone size={24} className="text-primary" />
           </div>
           <h3 className="font-bold text-text-primary mb-2">Phone</h3>
-          <p className="text-text-secondary text-sm mb-4">Mon-Sat from 10am to 8pm.</p>
-          <div className="mt-2 pt-2">
+          <p className="text-text-secondary text-sm mb-2">Mon-Sat from 10am to 8pm.</p>
+          <div>
             <a href={`tel:${phone}`} className="font-medium text-primary hover:underline">{phone || 'Not available'}</a>
           </div>
         </div>
@@ -33,8 +33,8 @@ const ContactUsPage = ({ settings }) => {
             <Mail size={24} className="text-primary" />
           </div>
           <h3 className="font-bold text-text-primary mb-2">Email</h3>
-          <p className="text-text-secondary text-sm mb-4">Our friendly team is here to help.</p>
-          <div className="mt-2 pt-2">
+          <p className="text-text-secondary text-sm mb-2">Our friendly team is here to help.</p>
+          <div>
             <a href={`mailto:${email}`} className="font-medium text-primary hover:underline">{email || 'Not available'}</a>
           </div>
         </div>
@@ -44,8 +44,8 @@ const ContactUsPage = ({ settings }) => {
             <MapPin size={24} className="text-primary" />
           </div>
           <h3 className="font-bold text-text-primary mb-2">Office</h3>
-          <p className="text-text-secondary text-sm mb-4">Come say hello at our store HQ.</p>
-          <div className="mt-2 pt-2">
+          <p className="text-text-secondary text-sm mb-2">Come say hello at our store HQ.</p>
+          <div>
             <a 
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || '')}`} 
               target="_blank" 
