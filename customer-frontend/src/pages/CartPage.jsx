@@ -2,14 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ArrowRight, Trash2, ArrowLeft, X } from 'lucide-react';
 import useCartStore from '../store/cartStore';
-import useAuthStore from '../store/authStore';
 import QuantityControl from '../components/common/QuantityControl';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { formatCurrency } from '../utils/formatCurrency';
 
 const CartPage = ({ settings }) => {
   const navigate = useNavigate();
-  const { customer } = useAuthStore();
   const { items, clearCart, removeItem, incrementItem, decrementItem } = useCartStore();
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
