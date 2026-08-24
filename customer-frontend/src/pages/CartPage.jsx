@@ -14,13 +14,8 @@ const CartPage = ({ settings }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  const globalDiscount = Number(settings?.pricing?.globalDiscount) || 0;
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const totalDiscount = items.reduce((sum, item) => {
-    if (!item.isCombo && item.discountPrice && item.discountPrice < item.mrp) {
-      return sum + (item.mrp - item.discountPrice) * item.quantity;
-    }
-    return sum;
-  }, 0);
 
   const deliveryCharge = settings?.delivery?.deliveryCharge || 0;
   const freeDeliveryThreshold = settings?.delivery?.freeDeliveryThreshold || 0;
@@ -49,12 +44,7 @@ const CartPage = ({ settings }) => {
       alert(`Maximum order amount is ${formatCurrency(maxOrderAmount)}`);
       return;
     }
-    
-    if (!customer) {
-      navigate('/login?redirect=/checkout');
-    } else {
-      navigate('/checkout');
-    }
+    navigate('/checkout');
   };
 
   if (items.length === 0) {
@@ -122,11 +112,6 @@ const CartPage = ({ settings }) => {
                 <div className="flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-2">
                     <span className="price-green font-bold text-lg">{formatCurrency(item.price)}</span>
-                    {!item.isCombo && item.discountPrice && item.discountPrice < item.mrp && (
-                      <span className="text-xs text-text-secondary line-through">
-                        {formatCurrency(item.mrp)}
-                      </span>
-                    )}
                   </div>
                   <QuantityControl
                     quantity={item.quantity}
@@ -156,10 +141,11 @@ const CartPage = ({ settings }) => {
                 <span>{formatCurrency(subtotal)}</span>
               </div>
               
-              {totalDiscount > 0 && (
-                <div className="flex justify-between text-success">
-                  <span>Product Discount</span>
-                  <span>-{formatCurrency(totalDiscount)}</span>
+              
+              {globalDiscount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>{globalDiscount}% Discount Applied</span>
+                  <span>-{formatCurrency(items.reduce((sum, item) => !item.isCombo ? sum + (item.mrp - item.price) * item.quantity : sum, 0))}</span>
                 </div>
               )}
               

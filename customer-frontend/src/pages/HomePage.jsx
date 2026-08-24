@@ -12,12 +12,29 @@ const HomePage = ({ settings }) => {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [combos, setCombos] = useState([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Filters state
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // Scroll to category section instead of filtering
+  const handleCategoryNavigate = (catId) => {
+    setSelectedCategory(catId);
+    if (!catId) {
+      // "All Products" — scroll to top of products area
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Scroll to the specific category section
+      setTimeout(() => {
+        const el = document.getElementById(`category-${catId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('list');
   const [filters, setFilters] = useState({ priceRange: '', availability: '' });
@@ -54,9 +71,8 @@ const HomePage = ({ settings }) => {
 
   // Client-side filtering
   const filteredProducts = products.filter(p => {
-    if (selectedCategory && p.category?._id !== selectedCategory) return false;
     if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.sku.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    
+
     // Price range
     const price = p.discountPrice && p.discountPrice < p.mrp ? p.discountPrice : p.mrp;
     if (filters.priceRange === '0-100' && price > 100) return false;
@@ -75,9 +91,8 @@ const HomePage = ({ settings }) => {
   });
 
   const filteredCombos = combos.filter(c => {
-    if (selectedCategory) return false; // Combos usually don't have a category, hide them if a category is selected unless we define a 'Combos' category.
     if (searchQuery && !c.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    
+
     const price = c.price;
     if (filters.priceRange === '0-100' && price > 100) return false;
     if (filters.priceRange === '100-500' && (price <= 100 || price > 500)) return false;
@@ -86,7 +101,7 @@ const HomePage = ({ settings }) => {
 
     if (filters.availability === 'inStock' && c.availableStock === 0) return false;
     if (filters.availability === 'outOfStock' && c.availableStock > 0) return false;
-    
+
     if (!settings?.inventory?.showOutOfStock && c.availableStock === 0) return false;
 
     return true;
@@ -122,7 +137,7 @@ const HomePage = ({ settings }) => {
       <ProductToolbar
         categories={categories}
         selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
+        onCategoryChange={handleCategoryNavigate}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         productCount={filteredProducts.length + (showCombos ? filteredCombos.length : 0)}
@@ -134,17 +149,17 @@ const HomePage = ({ settings }) => {
 
       {/* Product List */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-8">
-        
+
         {filteredProducts.length === 0 && (!showCombos) ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-border">
             <Store className="mx-auto h-12 w-12 text-gray-300 mb-3" />
             <h3 className="text-lg font-medium text-text-primary">No products found</h3>
             <p className="text-text-secondary mt-1">Try adjusting your filters or search query.</p>
             {(searchQuery || selectedCategory || filters.priceRange || filters.availability) && (
-              <button 
+              <button
                 onClick={() => {
                   setSearchQuery('');
-                  setSelectedCategory(null);
+                  handleCategoryNavigate(null);
                   setFilters({ priceRange: '', availability: '' });
                 }}
                 className="mt-4 text-primary font-medium hover:underline"
@@ -158,11 +173,20 @@ const HomePage = ({ settings }) => {
             {/* Combos Section (only show when 'All' is selected) */}
             {showCombos && (
               <section>
-                <div className="flex items-center gap-3 mb-6">
-                  <h2 className="text-2xl font-bold text-text-primary">Special Offers</h2>
+                <div className="flex items-center gap-0 mb-6">
+                  <h2
+                    className="text-sm sm:text-base font-extrabold text-white uppercase tracking-wider px-5 py-2.5 rounded-l-xl"
+                    style={{
+                      background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                      clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)',
+                      paddingRight: '2rem',
+                    }}
+                  >
+                    Special Offers
+                  </h2>
                   <div className="h-px bg-border flex-1"></div>
                 </div>
-                <div className={viewMode === 'grid' 
+                <div className={viewMode === 'grid'
                   ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
                   : "flex flex-col gap-3"
                 }>
@@ -175,28 +199,36 @@ const HomePage = ({ settings }) => {
 
             {/* Products by Category */}
             {categories
-              .filter(c => !selectedCategory || c._id === selectedCategory)
               .map(category => {
                 const categoryProducts = filteredProducts.filter(p => p.category?._id === category._id);
                 if (categoryProducts.length === 0) return null;
 
                 return (
-                  <section key={category._id} id={`category-${category._id}`} className="scroll-mt-32">
-                    <div className="flex items-center gap-3 mb-6">
-                      <h2 className="text-2xl font-bold text-text-primary">{category.name}</h2>
+                  <section key={category._id} id={`category-${category._id}`} className="scroll-mt-40 sm:scroll-mt-40">
+                    <div className="flex items-center gap-0 mb-6">
+                      <h2
+                        className="text-sm sm:text-base font-extrabold text-white uppercase tracking-wider px-5 py-2.5 rounded-l-xl"
+                        style={{
+                          background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
+                          clipPath: 'polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)',
+                          paddingRight: '2rem',
+                        }}
+                      >
+                        {category.name}
+                      </h2>
                       <div className="h-px bg-border flex-1"></div>
                     </div>
-                    <div className={viewMode === 'grid' 
+                    <div className={viewMode === 'grid'
                       ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4"
                       : "flex flex-col gap-3"
                     }>
                       {categoryProducts.map(product => (
-                        <ProductCard key={product._id} product={product} viewMode={viewMode} />
+                        <ProductCard key={product._id} product={product} viewMode={viewMode} globalDiscount={settings?.pricing?.globalDiscount} />
                       ))}
                     </div>
                   </section>
                 );
-            })}
+              })}
           </div>
         )}
       </div>

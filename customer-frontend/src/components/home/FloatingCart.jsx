@@ -26,7 +26,7 @@ const FloatingCart = () => {
         style={{
           background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
           boxShadow: '0 8px 32px rgba(124, 58, 237, 0.45), 0 2px 8px rgba(0,0,0,0.18)',
-          maxWidth: 480,
+          maxWidth: 320,
           width: '100%',
         }}
       >

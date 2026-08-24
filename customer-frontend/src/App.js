@@ -107,7 +107,7 @@ function App() {
           <Route path="/cart" element={<CartPage settings={settings} />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/checkout" element={<CheckoutPage settings={settings} />} />
-          <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
+          <Route path="/order-success/:orderId" element={<OrderSuccessPage settings={settings} />} />
           <Route path="/my-orders" element={<MyOrdersPage />} />
           <Route path="/order/:orderId" element={<OrderDetailsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />

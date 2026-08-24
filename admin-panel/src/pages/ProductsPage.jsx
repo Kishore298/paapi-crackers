@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Edit2, Trash2, Image as ImageIcon, X, Barcode, Printer } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Image as ImageIcon, X, Barcode, Printer, Upload } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
@@ -22,6 +22,8 @@ const ProductsPage = () => {
   // Barcode Modal State
   const [barcodeModalProduct, setBarcodeModalProduct] = useState(null);
   const barcodeRef = useRef(null);
+  const excelRef = useRef(null);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -29,6 +31,7 @@ const ProductsPage = () => {
     description: '',
     category: '',
     mrp: '',
+    pcs: '',
     youtubeVideoId: '',
     hsnCode: '',
     stock: '0',
@@ -109,6 +112,27 @@ const ProductsPage = () => {
     }
   };
 
+  const handleBulkUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const data = new FormData();
+    data.append('file', file);
+    try {
+      setUploadingExcel(true);
+      const res = await API.post('/products/bulk-upload', data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success(res.data.message || 'Bulk upload successful');
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Bulk upload failed');
+    } finally {
+      setUploadingExcel(false);
+      if (excelRef.current) excelRef.current.value = '';
+    }
+  };
+
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = categoryFilter ? p.category?._id === categoryFilter : true;
@@ -123,6 +147,7 @@ const ProductsPage = () => {
         description: product.description || '',
         category: product.category?._id || '',
         mrp: product.mrp,
+        pcs: product.pcs || '',
         youtubeVideoId: product.youtubeVideoId || '',
         hsnCode: product.hsnCode || '',
         stock: product.stock.toString(),
@@ -131,7 +156,7 @@ const ProductsPage = () => {
     } else {
       setEditingProduct(null);
       setFormData({
-        name: '', description: '', category: '', mrp: '',
+        name: '', description: '', category: '', mrp: '', pcs: '',
         youtubeVideoId: '', hsnCode: '', stock: '0', active: true
       });
     }
@@ -196,9 +221,15 @@ const ProductsPage = () => {
           <h1 className="text-2xl font-bold text-text-primary">Products</h1>
           <p className="text-sm text-text-secondary">Manage your catalogue and pricing</p>
         </div>
-        <button onClick={() => openModal()} className="btn-primary flex items-center gap-2">
-          <Plus size={18} /> Add Product
-        </button>
+        <div className="flex gap-2">
+          <input type="file" ref={excelRef} onChange={handleBulkUpload} accept=".xlsx,.xls,.csv" className="hidden" />
+          <button onClick={() => excelRef.current?.click()} disabled={uploadingExcel} className="btn-secondary flex items-center gap-2">
+            <Upload size={18} /> {uploadingExcel ? 'Uploading...' : 'Excel Upload'}
+          </button>
+          <button onClick={() => openModal()} className="btn-primary flex items-center gap-2">
+            <Plus size={18} /> Add Product
+          </button>
+        </div>
       </div>
 
       <div className="card p-4">
@@ -253,19 +284,16 @@ const ProductsPage = () => {
                         </div>
                         <div>
                           <p className="font-medium text-text-primary">{product.name}</p>
-                          <p className="text-xs text-text-secondary">Pack: {product.packQuantity}</p>
+                          <p className="text-xs text-text-secondary">{product.pcs || ''}</p>
                         </div>
                       </div>
                     </td>
                     <td className="font-mono text-sm">{product.sku}</td>
                     <td>{product.category?.name || '-'}</td>
                     <td>
-                      <div className="font-bold text-gray-900 mt-1">
-                        {formatCurrency(product.discountPrice && product.discountPrice < product.mrp ? product.discountPrice : product.mrp)}
+                      <div className="font-bold text-gray-900">
+                        {formatCurrency(product.mrp)}
                       </div>
-                      {product.discountPrice && product.discountPrice < product.mrp && (
-                        <div className="text-xs text-text-secondary line-through">{formatCurrency(product.mrp)}</div>
-                      )}
                     </td>
                     <td>
                       <span className={`font-medium ${product.stock === 0 ? 'text-discount' : product.stock <= 10 ? 'text-yellow-600' : 'text-success'}`}>
@@ -331,6 +359,10 @@ const ProductsPage = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">MRP*</label>
                       <input type="number" min="0" step="0.01" value={formData.mrp} onChange={e => setFormData({...formData, mrp: e.target.value})} className="input-field" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">PCS/Pack</label>
+                      <input type="text" value={formData.pcs} onChange={e => setFormData({...formData, pcs: e.target.value})} className="input-field" placeholder="e.g. 10pcs" />
                     </div>
                   </div>
 

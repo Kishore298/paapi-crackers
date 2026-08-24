@@ -43,10 +43,7 @@ const useCartStore = create(
                 image: product.image?.url,
                 sku: product.sku,
                 mrp: product.mrp,
-                discountPrice: product.discountPrice,
-                price: product.discountPrice && product.discountPrice < product.mrp
-                  ? product.discountPrice
-                  : product.mrp,
+                price: product.displayPrice !== undefined ? product.displayPrice : product.mrp,
                 packQuantity: product.packQuantity,
                 quantity: 1,
                 maxStock: product.stock || 0,
@@ -143,10 +140,7 @@ const useCartStore = create(
                   image: product.image?.url,
                   sku: product.sku,
                   mrp: product.mrp,
-                  discountPrice: product.discountPrice,
-                  price: product.discountPrice && product.discountPrice < product.mrp
-                    ? product.discountPrice
-                    : product.mrp,
+                  price: product.displayPrice !== undefined ? product.displayPrice : product.mrp,
                   packQuantity: product.packQuantity,
                   quantity: finalQty,
                   maxStock: product.stock || 0,
