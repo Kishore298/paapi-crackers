@@ -69,12 +69,7 @@ exports.getProduct = async (req, res, next) => {
 // POST /api/products
 exports.createProduct = async (req, res, next) => {
   try {
-    const { name, description, category, mrp, youtubeVideoId, hsnCode, stock, active } = req.body;
-
-    // Fetch settings for global discount
-    const settings = await Settings.getSettings();
-    const globalDiscount = settings?.pricing?.globalDiscount || 0;
-    const calculatedDiscountPrice = globalDiscount > 0 ? parseFloat(mrp) - (parseFloat(mrp) * globalDiscount / 100) : undefined;
+    const { name, description, category, mrp, youtubeVideoId, hsnCode, stock, active, pcs } = req.body;
 
     // Auto-generate SKU
     const sku = await generateSKU();
@@ -98,7 +93,7 @@ exports.createProduct = async (req, res, next) => {
       category,
       sku,
       mrp: parseFloat(mrp),
-      discountPrice: calculatedDiscountPrice,
+      pcs,
       image,
       youtubeVideoId: videoId,
       hsnCode,
@@ -132,17 +127,15 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
 
-    const { name, description, category, mrp, youtubeVideoId, hsnCode, active } = req.body;
+    const { name, description, category, mrp, youtubeVideoId, hsnCode, active, pcs } = req.body;
 
     if (name) product.name = name;
     if (description !== undefined) product.description = description;
     if (category) product.category = category;
     if (mrp !== undefined) {
       product.mrp = parseFloat(mrp);
-      const settings = await Settings.getSettings();
-      const globalDiscount = settings?.pricing?.globalDiscount || 0;
-      product.discountPrice = globalDiscount > 0 ? product.mrp - (product.mrp * globalDiscount / 100) : undefined;
     }
+    if (pcs !== undefined) product.pcs = pcs;
     if (hsnCode !== undefined) product.hsnCode = hsnCode;
     if (active !== undefined) product.active = active === true || active === 'true';
 
@@ -251,6 +244,66 @@ exports.lookupBySKU = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found for this SKU.' });
     }
     res.json({ success: true, data: product });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/products/bulk-upload
+exports.bulkUpload = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No excel file uploaded.' });
+    }
+    const xlsx = require('xlsx');
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(sheet);
+
+    if (!data || data.length === 0) {
+      return res.status(400).json({ success: false, message: 'Excel file is empty.' });
+    }
+
+    let added = 0;
+    let updated = 0;
+    
+    // Attempt to get a default category if none provided in row
+    const defaultCategory = await Category.findOne();
+
+    for (const row of data) {
+      const name = row['name'] || row['product name'];
+      const mrp = row['amount'] || row['price'] || row['mrp'];
+      const pcs = row['pcs'] || row['pack inclusions'];
+
+      if (!name || !mrp) continue; // Skip invalid rows
+
+      let product = await Product.findOne({ name: new RegExp('^' + name + '$', 'i') });
+      if (product) {
+        // Update existing
+        product.mrp = parseFloat(mrp);
+        if (pcs !== undefined) product.pcs = String(pcs);
+        await product.save();
+        updated++;
+      } else {
+        // Create new
+        const sku = await generateSKU();
+        const barcodeData = await generateBarcodeBase64(sku);
+        await Product.create({
+          name,
+          mrp: parseFloat(mrp),
+          pcs: pcs !== undefined ? String(pcs) : undefined,
+          sku,
+          barcodeData,
+          category: defaultCategory ? defaultCategory._id : undefined, // Need category for Product, using random/first if not specified
+          active: true,
+          stock: 0
+        });
+        added++;
+      }
+    }
+
+    res.json({ success: true, message: `Bulk upload completed. Added: ${added}, Updated: ${updated}.` });
   } catch (error) {
     next(error);
   }

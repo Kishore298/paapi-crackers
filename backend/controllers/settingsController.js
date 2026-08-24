@@ -43,22 +43,7 @@ exports.updateSettings = async (req, res, next) => {
 
     await settings.save();
 
-    // If globalDiscount is updated, update all products
-    if (updates.pricing && updates.pricing.globalDiscount !== undefined) {
-      const globalDiscount = Number(updates.pricing.globalDiscount);
-      const Product = require('../models/Product');
-      
-      // Update all products with auto-calculated discountPrice
-      await Product.updateMany({}, [
-        { 
-          $set: { 
-            discountPrice: { 
-              $subtract: ["$mrp", { $multiply: ["$mrp", { $divide: [globalDiscount, 100] }] }] 
-            } 
-          } 
-        }
-      ]);
-    }
+
 
     res.json({ success: true, data: settings });
   } catch (error) {
@@ -123,6 +108,7 @@ exports.getPublicSettings = async (req, res, next) => {
         inventory: {
           showOutOfStock: settings.inventory.showOutOfStock,
         },
+        pricing: settings.pricing,
       },
     });
   } catch (error) {

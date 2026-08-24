@@ -55,7 +55,6 @@ exports.createOrder = async (req, res, next) => {
     const orderItems = [];
     const stockDeductions = [];
     let subtotal = 0;
-    let totalDiscount = 0;
 
     for (const item of items) {
       if (item.isCombo) {
@@ -88,7 +87,6 @@ exports.createOrder = async (req, res, next) => {
           },
           quantity: item.quantity,
           price: combo.price,
-          discount: 0,
           total: itemTotal,
         });
 
@@ -116,16 +114,7 @@ exports.createOrder = async (req, res, next) => {
           });
         }
 
-        // Use MRP as base, calculate discount using settings global discount
-        const globalDiscount = settings.pricing?.globalDiscount || 0;
-        const discountPrice = globalDiscount > 0 
-          ? product.mrp - (product.mrp * globalDiscount / 100) 
-          : product.mrp;
-          
-        const price = discountPrice < product.mrp ? discountPrice : product.mrp;
-        const discount = discountPrice < product.mrp 
-          ? (product.mrp - discountPrice) * item.quantity
-          : 0;
+        const price = product.mrp;
         const itemTotal = price * item.quantity;
 
         orderItems.push({
@@ -140,12 +129,10 @@ exports.createOrder = async (req, res, next) => {
           },
           quantity: item.quantity,
           price,
-          discount,
           total: itemTotal,
         });
 
         subtotal += itemTotal;
-        totalDiscount += discount;
 
         stockDeductions.push({
           type: 'product',
@@ -193,7 +180,6 @@ exports.createOrder = async (req, res, next) => {
           shippingAddress,
           items: orderItems,
           subtotal,
-          discount: totalDiscount,
           deliveryCharge,
           gstAmount: gstInfo.gstAmount,
           grandTotal,
@@ -269,7 +255,6 @@ exports.createOrder = async (req, res, next) => {
           })),
           taxableAmount: order.subtotal,
           grandTotal: order.grandTotal,
-          discount: order.discount || 0,
           deliveryCharge: order.deliveryCharge || 0,
         };
         const pdfBuffer = await generateInvoicePDF(mockInvoice);

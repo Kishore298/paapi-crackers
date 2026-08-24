@@ -26,6 +26,10 @@ const productSchema = new mongoose.Schema(
       min: 0,
       required: [true, 'MRP is required']
     },
+    pcs: {
+      type: String,
+      trim: true,
+    },
     image: {
       url: { type: String },
       publicId: { type: String },

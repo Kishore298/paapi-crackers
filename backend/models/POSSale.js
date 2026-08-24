@@ -31,11 +31,7 @@ const posSaleItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    discount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+
     total: {
       type: Number,
       required: true,
@@ -70,11 +66,7 @@ const posSaleSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    discount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+
     gstAmount: {
       type: Number,
       default: 0,

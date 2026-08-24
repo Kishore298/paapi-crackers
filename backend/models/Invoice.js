@@ -18,11 +18,7 @@ const invoiceItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    discount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+
     taxableValue: {
       type: Number,
       required: true,
@@ -111,11 +107,7 @@ const invoiceSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    discount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+
     deliveryCharge: {
       type: Number,
       default: 0,

@@ -21,7 +21,7 @@ exports.createPOSSale = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { customerName, customerPhone, items, paymentMethod, billType, gstin, manualDiscount = 0 } = req.body;
+    const { customerName, customerPhone, items, paymentMethod, billType, gstin } = req.body;
 
     if (!items || items.length === 0) {
       await session.abortTransaction();
@@ -75,7 +75,6 @@ exports.createPOSSale = async (req, res, next) => {
           productSnapshot: { name: combo.name, image: combo.image?.url },
           quantity: item.quantity,
           price: combo.price,
-          discount: 0,
           total: itemTotal,
         });
 
@@ -96,13 +95,7 @@ exports.createPOSSale = async (req, res, next) => {
           });
         }
 
-        // Use mrp, unless valid discount exists
-        const price = product.discountPrice && product.discountPrice < product.mrp
-          ? product.discountPrice
-          : product.mrp;
-        const discount = product.discountPrice && product.discountPrice < product.mrp
-          ? (product.mrp - product.discountPrice) * item.quantity
-          : 0;
+        const price = product.mrp;
         const itemTotal = price * item.quantity;
 
         saleItems.push({
@@ -117,7 +110,6 @@ exports.createPOSSale = async (req, res, next) => {
           },
           quantity: item.quantity,
           price,
-          discount,
           total: itemTotal,
         });
 
@@ -127,7 +119,7 @@ exports.createPOSSale = async (req, res, next) => {
     }
 
     const gstInfo = await gstService.calculateGSTAmount(subtotal);
-    const grandTotal = Math.max(0, subtotal - Number(manualDiscount));
+    const grandTotal = subtotal;
     const billNumber = await generateBillNumber();
 
     const [sale] = await POSSale.create(
@@ -139,7 +131,6 @@ exports.createPOSSale = async (req, res, next) => {
           customerPhone: customerPhone || '',
           items: saleItems,
           subtotal,
-          discount: saleItems.reduce((sum, i) => sum + (i.discount || 0), 0) + Number(manualDiscount),
           gstAmount: gstInfo.gstAmount,
           grandTotal,
           paymentMethod,
