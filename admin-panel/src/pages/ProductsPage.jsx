@@ -183,6 +183,16 @@ const ProductsPage = () => {
         await API.put(`/products/${editingProduct._id}`, data, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        
+        // Update stock if changed
+        if (formData.stock !== editingProduct.stock.toString()) {
+          await API.put(`/products/${editingProduct._id}/stock`, {
+            action: 'set',
+            quantity: formData.stock,
+            notes: 'Stock updated from product edit form'
+          });
+        }
+        
         toast.success('Product updated successfully');
       } else {
         await API.post('/products', data, {
@@ -367,12 +377,10 @@ const ProductsPage = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    {!editingProduct && (
-                      <div>
-                        <label className="block text-sm font-medium text-text-primary mb-1">Opening Stock</label>
-                        <input type="number" min="0" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="input-field" />
-                      </div>
-                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-1">{editingProduct ? 'Current Stock' : 'Opening Stock'}</label>
+                      <input type="number" min="0" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} className="input-field" />
+                    </div>
                   </div>
                 </div>
 

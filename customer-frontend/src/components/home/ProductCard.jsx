@@ -23,6 +23,13 @@ const ProductCard = ({ product, viewMode = 'grid', globalDiscount = 0 }) => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const { addItem, incrementItem, decrementItem, getItemQuantity, setItemQuantity } = useCartStore();
 
+  const formattedPcs = (() => {
+    if (!product.pcs) return null;
+    const trimmed = String(product.pcs).trim();
+    if (/^\d+(\.\d+)?$/.test(trimmed)) return `${trimmed} pcs`;
+    return trimmed;
+  })();
+
   const quantity = getItemQuantity(product._id);
   const discountVal = Number(globalDiscount) || 0;
   const hasDiscount = discountVal > 0;
@@ -69,7 +76,7 @@ const ProductCard = ({ product, viewMode = 'grid', globalDiscount = 0 }) => {
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              {product.pcs && <span className="text-[10px] text-text-secondary uppercase">{product.pcs}</span>}
+              {formattedPcs && <span className="text-[10px] text-text-secondary uppercase">{formattedPcs}</span>}
               {product.youtubeVideoId && (
                 <a
                   href={`https://www.youtube.com/watch?v=${product.youtubeVideoId}`}
@@ -163,7 +170,7 @@ const ProductCard = ({ product, viewMode = 'grid', globalDiscount = 0 }) => {
 
           {/* Pcs info */}
           <div className="flex items-center gap-2 mb-1">
-            {product.pcs && <span className="text-[10px] text-text-secondary uppercase">{product.pcs}</span>}
+            {formattedPcs && <span className="text-[10px] text-text-secondary uppercase">{formattedPcs}</span>}
           </div>
 
           {isLowStock && (
