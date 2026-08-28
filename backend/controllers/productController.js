@@ -265,45 +265,161 @@ exports.bulkUpload = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Excel file is empty.' });
     }
 
+    // --- Pre-fetch all categories into a case-insensitive map ---
+    const allCategories = await Category.find().lean();
+    const categoryMap = new Map(); // lowercase name -> category doc
+    for (const cat of allCategories) {
+      categoryMap.set(cat.name.toLowerCase().trim(), cat);
+    }
+
+    // --- Pre-fetch all existing products by name (case-insensitive) ---
+    const allProducts = await Product.find({}, 'name mrp pcs category description hsnCode active stock').lean();
+    const productMap = new Map(); // lowercase name -> product doc
+    for (const prod of allProducts) {
+      productMap.set(prod.name.toLowerCase().trim(), prod);
+    }
+
+    // Default fallback category (first one in DB)
+    const defaultCategory = allCategories.length > 0 ? allCategories[0] : null;
+
+    // --- Helper: resolve a column value from a row using multiple possible header names ---
+    const getCol = (row, ...keys) => {
+      for (const key of keys) {
+        // Try exact key, then case-insensitive match
+        if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return row[key];
+        const found = Object.keys(row).find(k => k.toLowerCase().trim() === key.toLowerCase());
+        if (found && row[found] !== undefined && row[found] !== null && String(row[found]).trim() !== '') return row[found];
+      }
+      return undefined;
+    };
+
+    // --- Helper: resolve category ObjectId from a name string ---
+    const resolveCategory = async (categoryName) => {
+      if (!categoryName) return null;
+      const normalized = String(categoryName).toLowerCase().trim();
+      if (!normalized) return null;
+
+      // Check existing map
+      if (categoryMap.has(normalized)) {
+        return categoryMap.get(normalized)._id;
+      }
+
+      // Auto-create the category
+      const newCat = await Category.create({ name: String(categoryName).trim() });
+      categoryMap.set(normalized, newCat.toObject());
+      return newCat._id;
+    };
+
+    // --- Helper: parse active/status field ---
+    const parseActive = (val) => {
+      if (val === undefined || val === null) return undefined;
+      const s = String(val).toLowerCase().trim();
+      if (['true', 'yes', 'active', '1'].includes(s)) return true;
+      if (['false', 'no', 'inactive', '0'].includes(s)) return false;
+      return undefined;
+    };
+
     let added = 0;
     let updated = 0;
-    
-    // Attempt to get a default category if none provided in row
-    const defaultCategory = await Category.findOne();
+    let skipped = 0;
+    const errors = [];
 
-    for (const row of data) {
-      const name = row['name'] || row['product name'];
-      const mrp = row['amount'] || row['price'] || row['mrp'];
-      const pcs = row['pcs'] || row['pack inclusions'];
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowNum = i + 2; // Excel row (1-indexed header + 1-indexed data)
 
-      if (!name || !mrp) continue; // Skip invalid rows
+      try {
+        const name = getCol(row, 'name', 'product name', 'product_name', 'productname');
+        const mrp = getCol(row, 'mrp', 'price', 'amount', 'rate');
+        const pcs = getCol(row, 'pcs', 'pack inclusions', 'pack', 'pieces', 'quantity');
+        const categoryName = getCol(row, 'category', 'category name', 'category_name', 'categoryname');
+        const description = getCol(row, 'description', 'desc');
+        const hsnCode = getCol(row, 'hsnCode', 'hsn code', 'hsn', 'hsn_code');
+        const activeVal = getCol(row, 'active', 'status');
+        const stockVal = getCol(row, 'stock', 'opening stock', 'qty');
 
-      let product = await Product.findOne({ name: new RegExp('^' + name + '$', 'i') });
-      if (product) {
-        // Update existing
-        product.mrp = parseFloat(mrp);
-        if (pcs !== undefined) product.pcs = String(pcs);
-        await product.save();
-        updated++;
-      } else {
-        // Create new
-        const sku = await generateSKU();
-        const barcodeData = await generateBarcodeBase64(sku);
-        await Product.create({
-          name,
-          mrp: parseFloat(mrp),
-          pcs: pcs !== undefined ? String(pcs) : undefined,
-          sku,
-          barcodeData,
-          category: defaultCategory ? defaultCategory._id : undefined, // Need category for Product, using random/first if not specified
-          active: true,
-          stock: 0
-        });
-        added++;
+        // Validate required fields
+        if (!name) {
+          skipped++;
+          errors.push({ row: rowNum, reason: 'Missing product name' });
+          continue;
+        }
+        if (mrp === undefined || mrp === null || isNaN(parseFloat(mrp))) {
+          skipped++;
+          errors.push({ row: rowNum, name: String(name), reason: 'Missing or invalid MRP/price' });
+          continue;
+        }
+
+        // Resolve category
+        let categoryId = null;
+        if (categoryName) {
+          categoryId = await resolveCategory(categoryName);
+        }
+
+        const normalizedName = String(name).toLowerCase().trim();
+        const existingProduct = productMap.get(normalizedName);
+
+        if (existingProduct) {
+          // --- Update existing product ---
+          const updateFields = { mrp: parseFloat(mrp) };
+          if (pcs !== undefined) updateFields.pcs = String(pcs);
+          if (categoryId) updateFields.category = categoryId;
+          if (description !== undefined) updateFields.description = String(description);
+          if (hsnCode !== undefined) updateFields.hsnCode = String(hsnCode);
+          const parsedActive = parseActive(activeVal);
+          if (parsedActive !== undefined) updateFields.active = parsedActive;
+
+          await Product.findByIdAndUpdate(existingProduct._id, { $set: updateFields });
+          updated++;
+        } else {
+          // --- Create new product ---
+          // Category is required: use resolved, or fallback to default
+          const finalCategoryId = categoryId || (defaultCategory ? defaultCategory._id : null);
+          if (!finalCategoryId) {
+            skipped++;
+            errors.push({ row: rowNum, name: String(name), reason: 'No category specified and no default category exists' });
+            continue;
+          }
+
+          const sku = await generateSKU();
+          const barcodeData = await generateBarcodeBase64(sku);
+          const stockNum = stockVal !== undefined ? parseInt(stockVal) || 0 : 0;
+          const parsedActive = parseActive(activeVal);
+
+          const newProduct = await Product.create({
+            name: String(name).trim(),
+            mrp: parseFloat(mrp),
+            pcs: pcs !== undefined ? String(pcs) : undefined,
+            description: description !== undefined ? String(description) : undefined,
+            hsnCode: hsnCode !== undefined ? String(hsnCode) : undefined,
+            sku,
+            barcodeData,
+            category: finalCategoryId,
+            active: parsedActive !== undefined ? parsedActive : true,
+            stock: stockNum,
+          });
+
+          // Create opening stock ledger entry if stock > 0
+          if (stockNum > 0) {
+            await stockService.setOpeningStock(newProduct._id, stockNum, req.user?._id, 'Opening stock from Excel bulk upload');
+          }
+
+          // Add to map so duplicates within the same file are detected
+          productMap.set(normalizedName, newProduct.toObject ? newProduct.toObject() : newProduct);
+          added++;
+        }
+      } catch (rowError) {
+        skipped++;
+        errors.push({ row: rowNum, reason: rowError.message || 'Unexpected error' });
       }
     }
 
-    res.json({ success: true, message: `Bulk upload completed. Added: ${added}, Updated: ${updated}.` });
+    res.json({
+      success: true,
+      message: `Bulk upload completed. Added: ${added}, Updated: ${updated}${skipped > 0 ? `, Skipped: ${skipped}` : ''}.`,
+      summary: { added, updated, skipped, total: data.length },
+      errors: errors.length > 0 ? errors : undefined,
+    });
   } catch (error) {
     next(error);
   }

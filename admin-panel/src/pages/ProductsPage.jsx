@@ -123,7 +123,28 @@ const ProductsPage = () => {
       const res = await API.post('/products/bulk-upload', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      toast.success(res.data.message || 'Bulk upload successful');
+      const { summary, errors: rowErrors } = res.data;
+      
+      // Build a descriptive toast message
+      if (summary) {
+        const parts = [];
+        if (summary.added > 0) parts.push(`${summary.added} added`);
+        if (summary.updated > 0) parts.push(`${summary.updated} updated`);
+        if (summary.skipped > 0) parts.push(`${summary.skipped} skipped`);
+        toast.success(`Upload complete: ${parts.join(', ')} (${summary.total} rows processed)`);
+      } else {
+        toast.success(res.data.message || 'Bulk upload successful');
+      }
+      
+      // Show errors if any rows were skipped
+      if (rowErrors && rowErrors.length > 0) {
+        const errorMessages = rowErrors.slice(0, 5).map(e => 
+          `Row ${e.row}${e.name ? ` (${e.name})` : ''}: ${e.reason}`
+        ).join('\n');
+        const suffix = rowErrors.length > 5 ? `\n...and ${rowErrors.length - 5} more` : '';
+        toast.error(`Some rows had issues:\n${errorMessages}${suffix}`, { duration: 8000, style: { whiteSpace: 'pre-line' } });
+      }
+      
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Bulk upload failed');
