@@ -6,8 +6,10 @@ const storage = multer.memoryStorage();
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
+  } else if (file.mimetype.includes('spreadsheetml') || file.mimetype.includes('excel') || file.mimetype.includes('csv') || file.originalname.match(/\.(xlsx|xls|csv)$/)) {
+    cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed.'), false);
+    cb(new Error('Only image and excel files are allowed.'), false);
   }
 };
 
