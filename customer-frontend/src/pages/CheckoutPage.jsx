@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MapPin, User, Building2, Shield } from 'lucide-react';
+import { MapPin, User, Shield } from 'lucide-react';
 import useCartStore from '../store/cartStore';
 import useAuthStore from '../store/authStore';
 import API from '../api/axios';
@@ -240,16 +240,7 @@ const CheckoutPage = ({ settings }) => {
                 </div>
               )}
 
-              {/* GSTIN */}
-              <div className="border-t border-border mt-4 pt-4">
-                <h3 className="font-medium text-text-primary mb-3 flex items-center gap-2">
-                  <Building2 size={16} className="text-text-secondary" /> Business Buyer? (Optional)
-                </h3>
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-1">GSTIN Number</label>
-                  <input type="text" name="gstin" value={formData.gstin} onChange={handleChange} className="input-field uppercase" placeholder="Enter valid GSTIN for B2B Invoice" />
-                </div>
-              </div>
+
             </div>
           </div>
 

@@ -43,6 +43,7 @@ const CameraScanner = ({ onScan, onClose }) => {
 const POSPage = () => {
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
+  const [searchQuantities, setSearchQuantities] = useState({});
 
   // Cart State
   const [cart, setCart] = useState([]); // { product, quantity }
@@ -126,9 +127,12 @@ const POSPage = () => {
   };
 
   const filteredSales = sales.filter(s => {
-    const matchesSearch = s.billNumber.toLowerCase().includes(historySearch.toLowerCase()) ||
-      (s.customerName || '').toLowerCase().includes(historySearch.toLowerCase()) ||
-      (s.customerPhone || '').includes(historySearch);
+    const term = historySearch.toLowerCase();
+    const matchesSearch = s.billNumber.toLowerCase().includes(term) ||
+      (s.customerName || '').toLowerCase().includes(term) ||
+      (s.customerPhone || '').includes(term) ||
+      (s.customerEmail || '').toLowerCase().includes(term) ||
+      (s.invoice?.invoiceNumber || '').toLowerCase().includes(term);
     const matchesPayment = paymentFilter ? s.paymentMethod === paymentFilter : true;
     return matchesSearch && matchesPayment;
   });
@@ -153,25 +157,30 @@ const POSPage = () => {
     return p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term);
   }) : [];
 
-  const addToCart = (product) => {
+  const addToCart = (product, qty = 1) => {
     if (product.stock <= 0) return toast.error('Product is out of stock');
 
     setCart(prev => {
       const existing = prev.find(item => item.product._id === product._id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (existing.quantity + qty > product.stock) {
           toast.error('Maximum stock reached');
           return prev;
         }
         return prev.map(item =>
           item.product._id === product._id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + qty }
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: qty }];
     });
     setSearch(''); // clear search after adding
+    setSearchQuantities(prev => {
+      const next = {...prev};
+      delete next[product._id];
+      return next;
+    });
   };
 
   const updateQuantity = (productId, delta) => {
@@ -471,24 +480,60 @@ const POSPage = () => {
                       <p className="text-sm text-text-secondary text-center py-4">No products found</p>
                     ) : (
                       filteredProducts.map(product => (
-                        <button
+                        <div
                           key={product._id}
-                          onClick={() => addToCart(product)}
-                          disabled={product.stock === 0}
-                          className={`w-full text-left p-3 rounded-lg flex items-center justify-between hover:bg-gray-50 transition-colors ${product.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                          className={`w-full text-left p-3 rounded-lg flex items-center justify-between border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${product.stock === 0 ? 'opacity-50 grayscale' : ''}`}
                         >
-                          <div>
+                          <div className="flex-1">
                             <p className="font-semibold text-sm text-text-primary mb-0.5">{product.name}</p>
                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${product.stock === 0 ? 'bg-red-100 text-red-700' : 'text-green-600 bg-green-50'}`}>
                               {product.stock} in stock
                             </span>
                           </div>
-                          <div className="text-right">
-                            <span className="font-bold text-primary text-sm block">
-                              {formatCurrency(product.discountPrice || product.mrp)}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <span className="font-bold text-primary text-sm block">
+                                {formatCurrency(product.discountPrice || product.mrp)}
+                              </span>
+                            </div>
+                            {product.stock > 0 && (
+                              <div className="flex items-center gap-2 bg-white border border-border rounded-lg p-0.5 shadow-sm">
+                                <button 
+                                  onClick={() => setSearchQuantities(prev => ({...prev, [product._id]: Math.max(1, (prev[product._id] || 1) - 1)}))}
+                                  className="p-1 hover:bg-gray-100 rounded text-text-secondary"
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={product.stock}
+                                  value={searchQuantities[product._id] || 1}
+                                  onChange={(e) => {
+                                    let val = parseInt(e.target.value) || 1;
+                                    if (val < 1) val = 1;
+                                    if (val > product.stock) val = product.stock;
+                                    setSearchQuantities(prev => ({...prev, [product._id]: val}));
+                                  }}
+                                  className="w-10 text-center text-sm font-medium border-none p-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                                <button 
+                                  onClick={() => setSearchQuantities(prev => ({...prev, [product._id]: Math.min(product.stock, (prev[product._id] || 1) + 1)}))}
+                                  className="p-1 hover:bg-gray-100 rounded text-text-secondary"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => addToCart(product, searchQuantities[product._id] || 1)}
+                              disabled={product.stock === 0}
+                              className="btn-primary py-1 px-3 text-xs shrink-0"
+                            >
+                              Add
+                            </button>
                           </div>
-                        </button>
+                        </div>
                       ))
                     )}
                   </div>

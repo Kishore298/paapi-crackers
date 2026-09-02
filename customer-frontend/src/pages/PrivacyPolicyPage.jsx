@@ -55,7 +55,7 @@ const PrivacyPolicyPage = () => {
           <p>If you have any questions about this Privacy Policy, please contact us at:</p>
           <p className="mt-2"><strong>Paapi Crackers</strong><br />
           Email: <a href="mailto:paapicrackers@gmail.com" className="text-primary hover:underline">paapicrackers@gmail.com</a><br />
-          Phone: <a href="tel:+916383668791" className="text-primary hover:underline">+91 63836 68791</a></p>
+          Phone: <a href="tel:+918248061885" className="text-primary hover:underline">+91 82480 61885</a></p>
         </section>
 
       </div>

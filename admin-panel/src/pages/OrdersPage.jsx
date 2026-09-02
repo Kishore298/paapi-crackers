@@ -112,7 +112,11 @@ const OrdersPage = () => {
   };
 
   const filteredOrders = orders.filter(o => {
-    const matchesSearch = o.orderNumber.includes(search) || o.customerDetails.name.toLowerCase().includes(search.toLowerCase()) || o.customerDetails.phone.includes(search);
+    const term = search.toLowerCase();
+    const matchesSearch = o.orderNumber.includes(search) || 
+                          o.customerDetails.name.toLowerCase().includes(term) || 
+                          o.customerDetails.phone.includes(search) ||
+                          (o.customerDetails.email && o.customerDetails.email.toLowerCase().includes(term));
     const matchesStatus = statusFilter ? o.status === statusFilter : true;
     return matchesSearch && matchesStatus;
   });

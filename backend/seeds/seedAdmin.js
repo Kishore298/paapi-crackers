@@ -19,7 +19,7 @@ const seedAdmin = async () => {
         name: 'Super Admin',
         email: 'admin@paapicrackers.com',
         password: 'PapiBanu',
-        phone: '6383668791',
+        phone: '8248061885',
         role: 'superAdmin',
       });
       console.log('Super Admin created:');

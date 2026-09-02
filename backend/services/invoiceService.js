@@ -28,7 +28,7 @@ const generateNormalInvoice = async ({ order, posSale, generatedBy }) => {
   const settings = await Settings.getSettings();
   const source = order || posSale;
 
-  const invoiceNumber = await generateInvoiceNumber(settings);
+  const invoiceNumber = order?.orderNumber ? order.orderNumber : await generateInvoiceNumber(settings);
 
   const customerSnapshot = order
     ? {
@@ -113,7 +113,7 @@ const generateGSTInvoice = async ({ order, posSale, gstin, customerDetails, gene
   const settings = await Settings.getSettings();
   const source = order || posSale;
 
-  const invoiceNumber = await generateInvoiceNumber(settings);
+  const invoiceNumber = order?.orderNumber ? order.orderNumber : await generateInvoiceNumber(settings);
 
   const customerState = order?.shippingAddress?.state || customerDetails?.state || '';
 

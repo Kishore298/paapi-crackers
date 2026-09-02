@@ -8,7 +8,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 
 const CartPage = ({ settings }) => {
   const navigate = useNavigate();
-  const { items, clearCart, removeItem, incrementItem, decrementItem } = useCartStore();
+  const { items, clearCart, removeItem, incrementItem, decrementItem, setItemQuantity } = useCartStore();
   const [isClearing, setIsClearing] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -77,9 +77,10 @@ const CartPage = ({ settings }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart Items */}
-        <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
-            <div key={item.isCombo ? item.comboId : item.productId} className="card p-4 flex gap-4 items-center">
+        <div className="lg:col-span-2">
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            {items.map((item) => (
+              <div key={item.isCombo ? item.comboId : item.productId} className="card p-4 flex gap-4 items-center">
               <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
                 {item.image ? (
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -115,6 +116,7 @@ const CartPage = ({ settings }) => {
                     quantity={item.quantity}
                     onIncrement={() => incrementItem(item.isCombo ? item.comboId : item.productId, item.isCombo)}
                     onDecrement={() => decrementItem(item.isCombo ? item.comboId : item.productId, item.isCombo)}
+                    onSetQuantity={(val) => setItemQuantity(item.isCombo ? item.comboId : item.productId, val, item.isCombo)}
                     maxStock={item.maxStock}
                     compact
                   />
@@ -125,7 +127,8 @@ const CartPage = ({ settings }) => {
                 )}
               </div>
             </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Order Summary */}

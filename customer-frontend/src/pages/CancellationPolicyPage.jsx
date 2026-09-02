@@ -12,7 +12,7 @@ const CancellationPolicyPage = () => {
         <section>
           <h3 className="text-lg font-bold text-text-primary mb-2">1. Order Cancellations</h3>
           <ul className="list-disc pl-6 space-y-2">
-            <li><strong>Before Dispatch:</strong> You can cancel your order and receive a full refund if the order has not yet been dispatched from our Sivakasi warehouse. Please contact us immediately at <a href="tel:+916383668791" className="text-primary hover:underline">+91 63836 68791</a> to request a cancellation.</li>
+            <li><strong>Before Dispatch:</strong> You can cancel your order and receive a full refund if the order has not yet been dispatched from our Sivakasi warehouse. Please contact us immediately at <a href="tel:+918248061885" className="text-primary hover:underline">+91 82480 61885</a> to request a cancellation.</li>
             <li><strong>After Dispatch:</strong> Once your parcel is shipped, we cannot process any cancellations.</li>
           </ul>
         </section>

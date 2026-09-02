@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, GripVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
 import ConfirmModal from '../components/common/ConfirmModal';
@@ -7,6 +7,10 @@ import ConfirmModal from '../components/common/ConfirmModal';
 const CategoriesPage = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Drag and Drop state
+  const [draggedCategoryId, setDraggedCategoryId] = useState(null);
+  const [dragOverCategoryId, setDragOverCategoryId] = useState(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,15 +23,15 @@ const CategoriesPage = () => {
     fetchCategories();
   }, []);
 
-  const fetchCategories = async () => {
+  const fetchCategories = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const { data } = await API.get('/categories');
       setCategories(data.data);
     } catch (error) {
       toast.error('Failed to load categories');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -46,6 +50,56 @@ const CategoriesPage = () => {
     setIsModalOpen(true);
   };
 
+  const handleDragStart = (e, category) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedCategoryId(category._id);
+  };
+
+  const handleDragOver = (e, category) => {
+    e.preventDefault();
+    if (draggedCategoryId === category._id) return;
+    setDragOverCategoryId(category._id);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCategoryId(null);
+  };
+
+  const handleDrop = async (e, targetCategory) => {
+    e.preventDefault();
+    setDragOverCategoryId(null);
+    if (!draggedCategoryId || draggedCategoryId === targetCategory._id) return;
+
+    // reorder locally
+    const items = [...categories];
+    const fromIndex = items.findIndex(c => c._id === draggedCategoryId);
+    const toIndex = items.findIndex(c => c._id === targetCategory._id);
+    
+    const [movedItem] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, movedItem);
+
+    // Update displayOrder for all items
+    const reordered = items.map((item, index) => ({
+      ...item,
+      displayOrder: index
+    }));
+
+    setCategories(reordered);
+    setDraggedCategoryId(null);
+
+    try {
+      const orderData = reordered.map(item => ({
+        id: item._id,
+        displayOrder: item.displayOrder
+      }));
+      await API.put('/categories/reorder', { order: orderData });
+      toast.success('Categories reordered');
+    } catch (error) {
+      toast.error('Failed to save category order');
+      fetchCategories(false); // revert on failure
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name) return toast.error('Name is required');
@@ -60,7 +114,7 @@ const CategoriesPage = () => {
         toast.success('Category created');
       }
       setIsModalOpen(false);
-      fetchCategories();
+      fetchCategories(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save category');
     } finally {
@@ -76,7 +130,7 @@ const CategoriesPage = () => {
     try {
       await API.delete(`/categories/${confirmModal.id}`);
       toast.success('Category deleted');
-      fetchCategories();
+      fetchCategories(false);
     } catch (error) {
       toast.error('Failed to delete category');
     }
@@ -110,8 +164,26 @@ const CategoriesPage = () => {
               </thead>
               <tbody>
                 {categories.map(category => (
-                  <tr key={category._id}>
-                    <td className="font-medium text-text-primary">{category.name}</td>
+                  <tr 
+                    key={category._id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, category)}
+                    onDragOver={(e) => handleDragOver(e, category)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, category)}
+                    onDragEnd={() => { setDraggedCategoryId(null); setDragOverCategoryId(null); }}
+                    className={`
+                      ${draggedCategoryId === category._id ? 'opacity-50' : ''}
+                      ${dragOverCategoryId === category._id ? 'bg-primary-lighter/50' : ''}
+                      transition-colors cursor-move
+                    `}
+                  >
+                    <td className="font-medium text-text-primary">
+                      <div className="flex items-center gap-2">
+                        <GripVertical size={16} className="text-gray-400" />
+                        {category.name}
+                      </div>
+                    </td>
                     <td className="text-text-secondary">{category.description || '-'}</td>
                     <td>
                       <span className={`badge ${category.active ? 'badge-success' : 'badge-danger'}`}>

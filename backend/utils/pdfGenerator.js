@@ -128,17 +128,19 @@ const generateInvoicePDF = (invoice) => {
       doc.fontSize(9).font('Helvetica-Bold').fillColor(darkGray);
       
       const col = isGST 
-        ? { hash: 50, item: 80, hsn: 240, qty: 300, rate: 350, gst: 410, amt: 470 }
-        : { hash: 50, item: 90, qty: 280, rate: 360, amt: 450 };
+        ? { hash: 40, item: 70, hsn: 190, gst: 235, qty: 275, mrp: 310, disc: 350, rate: 400, amt: 460 }
+        : { hash: 40, item: 80, qty: 250, mrp: 290, disc: 340, rate: 390, amt: 460 };
 
       doc.text('#', col.hash, thY);
       doc.text('Item Description', col.item, thY);
       if (isGST) {
-        doc.text('HSN/SAC', col.hsn, thY, { width: 50, align: 'center' });
-        doc.text('GST %', col.gst, thY, { width: 40, align: 'center' });
+        doc.text('HSN/SAC', col.hsn, thY, { width: 40, align: 'center' });
+        doc.text('GST %', col.gst, thY, { width: 35, align: 'center' });
       }
       doc.text('Qty', col.qty, thY, { width: 30, align: 'center' });
-      doc.text('Rate (Rs)', col.rate, thY, { width: 50, align: 'right' });
+      doc.text('MRP', col.mrp, thY, { width: 40, align: 'right' });
+      doc.text('Disc', col.disc, thY, { width: 40, align: 'right' });
+      doc.text('Rate', col.rate, thY, { width: 50, align: 'right' });
       doc.text('Amount (Rs)', col.amt, thY, { width: 70, align: 'right' });
       doc.y = thY + 15;
 
@@ -157,19 +159,33 @@ const generateInvoicePDF = (invoice) => {
         
         doc.fontSize(9).font('Helvetica').fillColor(lightGray);
         
+        const mrpVal = item.productSnapshot?.mrp || item.rate;
+        const mrp = Number(mrpVal).toFixed(2);
+        let disc = '-';
+        if (item.productSnapshot?.mrp && item.productSnapshot?.discountPrice) {
+          const d = Number(item.productSnapshot.mrp) - Number(item.productSnapshot.discountPrice);
+          if (d > 0) disc = d.toFixed(2);
+        } else if (item.discount > 0) {
+          disc = item.discount.toFixed(2);
+        }
+
         doc.text(String(index + 1), col.hash, y);
-        doc.font('Helvetica-Bold').fillColor(darkGray).text(item.productSnapshot?.name || 'Item', col.item, y, { width: isGST ? 150 : 180 });
+        doc.font('Helvetica-Bold').fillColor(darkGray).text(item.productSnapshot?.name || 'Item', col.item, y, { width: isGST ? 110 : 160 });
         doc.font('Helvetica').fillColor(lightGray);
         
         if (isGST) {
-          doc.text(item.productSnapshot?.hsnCode || '-', col.hsn, y, { width: 50, align: 'center' });
-          const gstPercent = item.taxRate ? `${item.taxRate}%` : '18%';
-          doc.text(gstPercent, col.gst, y, { width: 40, align: 'center' });
+          doc.text(item.productSnapshot?.hsnCode || '-', col.hsn, y, { width: 40, align: 'center' });
+          const gstPercent = item.taxRate ? `${item.taxRate}%` : (item.igstRate || (item.cgstRate + item.sgstRate) || '18') + '%';
+          doc.text(gstPercent, col.gst, y, { width: 35, align: 'center' });
           doc.text(String(item.quantity), col.qty, y, { width: 30, align: 'center' });
+          doc.text(mrp, col.mrp, y, { width: 40, align: 'right' });
+          doc.text(disc, col.disc, y, { width: 40, align: 'right' });
           doc.text(Number(item.rate).toFixed(2), col.rate, y, { width: 50, align: 'right' });
           doc.text(Number(item.taxableValue).toFixed(2), col.amt, y, { width: 70, align: 'right' });
         } else {
           doc.text(String(item.quantity), col.qty, y, { width: 30, align: 'center' });
+          doc.text(mrp, col.mrp, y, { width: 40, align: 'right' });
+          doc.text(disc, col.disc, y, { width: 40, align: 'right' });
           doc.text(Number(item.rate).toFixed(2), col.rate, y, { width: 50, align: 'right' });
           doc.text(Number(item.total).toFixed(2), col.amt, y, { width: 70, align: 'right' });
         }
@@ -188,11 +204,13 @@ const generateInvoicePDF = (invoice) => {
           doc.text('#', col.hash, pthY);
           doc.text('Item Description', col.item, pthY);
           if (isGST) {
-            doc.text('HSN/SAC', col.hsn, pthY, { width: 50, align: 'center' });
-            doc.text('GST %', col.gst, pthY, { width: 40, align: 'center' });
+            doc.text('HSN/SAC', col.hsn, pthY, { width: 40, align: 'center' });
+            doc.text('GST %', col.gst, pthY, { width: 35, align: 'center' });
           }
           doc.text('Qty', col.qty, pthY, { width: 30, align: 'center' });
-          doc.text('Rate (Rs)', col.rate, pthY, { width: 50, align: 'right' });
+          doc.text('MRP', col.mrp, pthY, { width: 40, align: 'right' });
+          doc.text('Disc', col.disc, pthY, { width: 40, align: 'right' });
+          doc.text('Rate', col.rate, pthY, { width: 50, align: 'right' });
           doc.text('Amount (Rs)', col.amt, pthY, { width: 70, align: 'right' });
           nextY += 28;
         }

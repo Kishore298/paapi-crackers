@@ -16,16 +16,16 @@ const StockPage = () => {
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const { data } = await API.get('/products?limit=1000');
       setProducts(data.data);
       setStockUpdates({});
     } catch (error) {
       toast.error('Failed to load products');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -48,7 +48,7 @@ const StockPage = () => {
       setIsUpdating(true);
       await API.put('/stock/bulk-update', { updates });
       toast.success('Stock updated successfully');
-      fetchProducts();
+      fetchProducts(false);
     } catch (error) {
       toast.error('Failed to update stock');
     } finally {
@@ -59,7 +59,12 @@ const StockPage = () => {
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+  ).sort((a, b) => {
+    const aLow = a.stock <= 10 ? 1 : 0;
+    const bLow = b.stock <= 10 ? 1 : 0;
+    if (aLow !== bLow) return bLow - aLow;
+    return a.stock - b.stock;
+  });
 
   const outOfStockCount = products.filter(p => p.stock === 0).length;
   const lowStockCount = products.filter(p => p.stock > 0 && p.stock <= 10).length;

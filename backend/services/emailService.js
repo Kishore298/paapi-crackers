@@ -80,10 +80,17 @@ const sendOrderConfirmationEmail = async (order, pdfBuffer = null) => {
   if (!order.customerDetails?.email) return;
 
   const itemsHtml = order.items
-    .map(
-      (item) =>
-        `<tr><td>${item.productSnapshot.name}</td><td>${item.quantity}</td><td>₹${item.price}</td><td>₹${item.total}</td></tr>`
-    )
+    .map((item) => {
+      const mrp = Number(item.productSnapshot?.mrp || item.price).toFixed(2);
+      let disc = '-';
+      if (item.productSnapshot?.mrp && item.productSnapshot?.discountPrice) {
+        const d = Number(item.productSnapshot.mrp) - Number(item.productSnapshot.discountPrice);
+        if (d > 0) disc = d.toFixed(2);
+      } else if (item.discount > 0) {
+        disc = item.discount.toFixed(2);
+      }
+      return `<tr><td>${item.productSnapshot.name}</td><td>${item.quantity}</td><td>₹${mrp}</td><td>₹${disc}</td><td>₹${item.price}</td><td>₹${item.total}</td></tr>`;
+    })
     .join('');
 
   const attachments = [];
@@ -109,7 +116,9 @@ const sendOrderConfirmationEmail = async (order, pdfBuffer = null) => {
             <tr style="border-bottom: 2px solid #e5e7eb; text-align: left;">
               <th style="padding: 8px 0; color: #4b5563;">Product</th>
               <th style="padding: 8px 0; color: #4b5563;">Qty</th>
-              <th style="padding: 8px 0; color: #4b5563;">Price</th>
+              <th style="padding: 8px 0; color: #4b5563;">MRP</th>
+              <th style="padding: 8px 0; color: #4b5563;">Disc</th>
+              <th style="padding: 8px 0; color: #4b5563;">Rate</th>
               <th style="padding: 8px 0; color: #4b5563; text-align: right;">Total</th>
             </tr>
           </thead>
@@ -118,7 +127,7 @@ const sendOrderConfirmationEmail = async (order, pdfBuffer = null) => {
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="3" style="padding-top: 15px; text-align: right; font-weight: bold; color: #111827;">Grand Total:</td>
+              <td colspan="5" style="padding-top: 15px; text-align: right; font-weight: bold; color: #111827;">Grand Total:</td>
               <td style="padding-top: 15px; text-align: right; font-weight: bold; color: #7c3aed; font-size: 18px;">₹${order.grandTotal}</td>
             </tr>
           </tfoot>

@@ -96,9 +96,9 @@ const ProductsPage = () => {
     printWindow.document.close();
   };
 
-  const fetchData = async () => {
+  const fetchData = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const [prodRes, catRes] = await Promise.all([
         API.get('/products?limit=1000'),
         API.get('/categories')
@@ -108,7 +108,7 @@ const ProductsPage = () => {
     } catch (error) {
       toast.error('Failed to load data');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -145,7 +145,7 @@ const ProductsPage = () => {
         toast.error(`Some rows had issues:\n${errorMessages}${suffix}`, { duration: 8000, style: { whiteSpace: 'pre-line' } });
       }
       
-      fetchData();
+      fetchData(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Bulk upload failed');
     } finally {
@@ -223,7 +223,7 @@ const ProductsPage = () => {
       }
       
       setIsModalOpen(false);
-      fetchData();
+      fetchData(false);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save product');
     } finally {
@@ -239,7 +239,7 @@ const ProductsPage = () => {
     try {
       await API.delete(`/products/${confirmModal.id}`);
       toast.success('Product deleted');
-      fetchData();
+      fetchData(false);
     } catch (error) {
       toast.error('Failed to delete product');
     }
