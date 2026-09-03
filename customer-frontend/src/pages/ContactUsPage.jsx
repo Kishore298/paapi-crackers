@@ -47,12 +47,12 @@ const ContactUsPage = ({ settings }) => {
           <p className="text-text-secondary text-sm mb-2">Come say hello at our store HQ.</p>
           <div>
             <a 
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || '')}`} 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || 'vembakottai sivakasi tamilnadu - 626231')}`} 
               target="_blank" 
               rel="noopener noreferrer" 
               className="font-medium text-primary hover:underline text-sm px-4"
             >
-              Paapi Crackers Shop
+              {address || 'vembakottai sivakasi tamilnadu - 626231'}
             </a>
           </div>
         </div>

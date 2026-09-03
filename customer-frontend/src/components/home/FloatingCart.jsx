@@ -22,12 +22,10 @@ const FloatingCart = () => {
     <div className="fixed bottom-5 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
       <button
         onClick={() => navigate('/cart')}
-        className="pointer-events-auto flex items-center gap-3 pl-2 pr-5 py-2 rounded-2xl shadow-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        className="pointer-events-auto flex items-center gap-2 pl-2 pr-4 py-2 rounded-2xl shadow-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
         style={{
           background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
           boxShadow: '0 8px 32px rgba(124, 58, 237, 0.45), 0 2px 8px rgba(0,0,0,0.18)',
-          maxWidth: 320,
-          width: '100%',
         }}
       >
         {/* Stacked product images */}
@@ -63,19 +61,13 @@ const FloatingCart = () => {
         <div style={{ width: productImages.length > 1 ? (productImages.length - 1) * 20 : 4 }} />
 
         {/* Center: item count */}
-        <div className="flex-1 text-left">
-          <p className="text-white text-xs opacity-75 leading-tight">
-            {itemCount} {itemCount === 1 ? 'item' : 'items'} in cart
+        <div className="text-left pr-2">
+          <p className="text-white text-[10px] opacity-75 leading-tight">
+            {itemCount} {itemCount === 1 ? 'item' : 'items'}
           </p>
-          <p className="text-white font-bold text-base leading-tight">
+          <p className="text-white font-bold text-sm leading-tight">
             {formatCurrency(subtotal)}
           </p>
-        </div>
-
-        {/* Right: Go to cart */}
-        <div className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-1.5 ml-2 flex-shrink-0">
-          <span className="text-white font-semibold text-sm">View Cart</span>
-          <ArrowRight size={15} className="text-white" />
         </div>
       </button>
     </div>

@@ -9,6 +9,7 @@ import { SOCKET_URL } from './utils/constants';
 
 // Layout
 import Layout from './components/layout/Layout';
+import ScrollToTop from './components/layout/ScrollToTop';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -86,6 +87,7 @@ function App() {
   if (!onlineSalesEnabled) {
     return (
       <Router>
+        <ScrollToTop />
         <Toaster position="top-center" />
         <Routes>
           <Route path="*" element={<OnlineOrdersClosedPage settings={settings} />} />
@@ -96,6 +98,7 @@ function App() {
 
   return (
     <Router>
+      <ScrollToTop />
       <Toaster position="top-center" toastOptions={{
         style: { borderRadius: '12px', background: '#fff', color: '#18181B', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' },
         success: { iconTheme: { primary: '#159447', secondary: '#fff' } },
