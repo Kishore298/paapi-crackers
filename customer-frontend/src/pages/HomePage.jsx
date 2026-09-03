@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import API from '../api/axios';
 import Banner from '../components/home/Banner';
 import ProductToolbar from '../components/home/ProductToolbar';
@@ -65,9 +66,35 @@ const HomePage = ({ settings }) => {
     }
   }, []);
 
+  const location = useLocation();
+  const hasRestoredScroll = useRef(false);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Handle scroll preservation
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem('homeScrollY', window.scrollY.toString());
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !hasRestoredScroll.current) {
+      const savedScroll = sessionStorage.getItem('homeScrollY');
+      if (savedScroll) {
+        setTimeout(() => {
+          window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'instant' });
+        }, 100);
+      }
+      hasRestoredScroll.current = true;
+    }
+  }, [loading]);
 
   // Client-side filtering
   const filteredProducts = products.filter(p => {

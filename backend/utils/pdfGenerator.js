@@ -71,7 +71,7 @@ const generateInvoicePDF = (invoice) => {
         doc.font('Helvetica-Bold').fillColor(darkGray).text(value, rightX + 90, y, { width: 115, align: 'right' });
       };
 
-      drawMeta('Invoice No:', invoice.invoiceNumber);
+      drawMeta('Order No:', invoice.invoiceNumber);
       doc.moveDown(0.2);
       drawMeta('Invoice Date:', new Date(invoice.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }));
       doc.moveDown(0.2);
@@ -82,28 +82,22 @@ const generateInvoicePDF = (invoice) => {
       doc.moveTo(40, doc.y).lineTo(555, doc.y).lineWidth(1).strokeColor(borderGray).stroke();
       doc.y += 15;
 
-      // ---- BILL TO / SHIP TO ----
+      // ---- CUSTOMER DETAILS ----
       const billY = doc.y;
-      doc.fontSize(12).font('Helvetica-Bold').fillColor(brandColor).text('Billed To', 40, billY);
-      doc.moveTo(40, doc.y + 2).lineTo(280, doc.y + 2).lineWidth(1).strokeColor(borderGray).stroke();
-      
-      doc.fontSize(12).font('Helvetica-Bold').fillColor(brandColor).text('Shipped To', 315, billY);
-      doc.moveTo(315, doc.y + 2).lineTo(555, doc.y + 2).lineWidth(1).strokeColor(borderGray).stroke();
+      doc.fontSize(12).font('Helvetica-Bold').fillColor(brandColor).text('Customer Details', 40, billY);
+      doc.moveTo(40, doc.y + 2).lineTo(555, doc.y + 2).lineWidth(1).strokeColor(borderGray).stroke();
       
       doc.y = billY + 20;
       doc.fontSize(10).font('Helvetica-Bold').fillColor(darkGray);
-      doc.text(cust.name || 'Cash Customer', 40, doc.y, { width: 240 });
-      doc.text(cust.name || 'Cash Customer', 315, billY + 20, { width: 240 });
+      doc.text(cust.name || 'Cash Customer', 40, doc.y, { width: 515 });
 
       doc.y = billY + 35;
       doc.fontSize(9).font('Helvetica').fillColor(lightGray);
       const addressText = `${cust.address || ''}\n${cust.city || ''} - ${cust.pincode || ''}\n${cust.state || ''}`.trim();
       if (addressText) {
-        doc.text(addressText, 40, doc.y, { width: 240 });
-        doc.text(addressText, 315, billY + 35, { width: 240 });
+        doc.text(addressText, 40, doc.y, { width: 515 });
       } else {
         doc.text('Walk-in Customer', 40, doc.y);
-        doc.text('Walk-in Customer', 315, billY + 35);
       }
 
       doc.moveDown(0.5);
@@ -128,8 +122,8 @@ const generateInvoicePDF = (invoice) => {
       doc.fontSize(9).font('Helvetica-Bold').fillColor(darkGray);
       
       const col = isGST 
-        ? { hash: 40, item: 70, hsn: 190, gst: 235, qty: 275, mrp: 310, disc: 350, rate: 400, amt: 460 }
-        : { hash: 40, item: 80, qty: 250, mrp: 290, disc: 340, rate: 390, amt: 460 };
+        ? { hash: 40, item: 65, hsn: 165, gst: 205, qty: 240, rate: 275, disc: 325, final: 385, amt: 450 }
+        : { hash: 40, item: 75, qty: 240, rate: 290, disc: 340, final: 390, amt: 460 };
 
       doc.text('#', col.hash, thY);
       doc.text('Item Description', col.item, thY);
@@ -138,10 +132,10 @@ const generateInvoicePDF = (invoice) => {
         doc.text('GST %', col.gst, thY, { width: 35, align: 'center' });
       }
       doc.text('Qty', col.qty, thY, { width: 30, align: 'center' });
-      doc.text('MRP', col.mrp, thY, { width: 40, align: 'right' });
-      doc.text('Disc', col.disc, thY, { width: 40, align: 'right' });
-      doc.text('Rate', col.rate, thY, { width: 50, align: 'right' });
-      doc.text('Amount (Rs)', col.amt, thY, { width: 70, align: 'right' });
+      doc.text('Rate', col.rate, thY, { width: 45, align: 'right' });
+      doc.text('Disc(%)', col.disc, thY, { width: 50, align: 'right' });
+      doc.text('Final Rate', col.final, thY, { width: 55, align: 'right' });
+      doc.text('Total Amount', col.amt, thY, { width: 70, align: 'right' });
       doc.y = thY + 15;
 
       doc.y += 18;
@@ -159,18 +153,21 @@ const generateInvoicePDF = (invoice) => {
         
         doc.fontSize(9).font('Helvetica').fillColor(lightGray);
         
-        const mrpVal = item.productSnapshot?.mrp || item.rate;
-        const mrp = Number(mrpVal).toFixed(2);
-        let disc = '-';
-        if (item.productSnapshot?.mrp && item.productSnapshot?.discountPrice) {
-          const d = Number(item.productSnapshot.mrp) - Number(item.productSnapshot.discountPrice);
-          if (d > 0) disc = d.toFixed(2);
-        } else if (item.discount > 0) {
-          disc = item.discount.toFixed(2);
+        const rateVal = Number(item.productSnapshot?.mrp || item.rate || 0);
+        let discPercent = 0;
+        
+        // Calculate discount percentage based on rate and final rate
+        const finalRateVal = Number(item.rate); // The sold price (discounted)
+        if (rateVal > finalRateVal && rateVal > 0) {
+          discPercent = ((rateVal - finalRateVal) / rateVal) * 100;
         }
 
+        const rateStr = rateVal.toFixed(2);
+        const discStr = discPercent > 0 ? `${discPercent.toFixed(0)}%` : '-';
+        const finalRateStr = finalRateVal.toFixed(2);
+
         doc.text(String(index + 1), col.hash, y);
-        doc.font('Helvetica-Bold').fillColor(darkGray).text(item.productSnapshot?.name || 'Item', col.item, y, { width: isGST ? 110 : 160 });
+        doc.font('Helvetica-Bold').fillColor(darkGray).text(item.productSnapshot?.name || 'Item', col.item, y, { width: isGST ? 95 : 150 });
         doc.font('Helvetica').fillColor(lightGray);
         
         if (isGST) {
@@ -178,15 +175,15 @@ const generateInvoicePDF = (invoice) => {
           const gstPercent = item.taxRate ? `${item.taxRate}%` : (item.igstRate || (item.cgstRate + item.sgstRate) || '18') + '%';
           doc.text(gstPercent, col.gst, y, { width: 35, align: 'center' });
           doc.text(String(item.quantity), col.qty, y, { width: 30, align: 'center' });
-          doc.text(mrp, col.mrp, y, { width: 40, align: 'right' });
-          doc.text(disc, col.disc, y, { width: 40, align: 'right' });
-          doc.text(Number(item.rate).toFixed(2), col.rate, y, { width: 50, align: 'right' });
-          doc.text(Number(item.taxableValue).toFixed(2), col.amt, y, { width: 70, align: 'right' });
+          doc.text(rateStr, col.rate, y, { width: 45, align: 'right' });
+          doc.text(discStr, col.disc, y, { width: 50, align: 'right' });
+          doc.text(finalRateStr, col.final, y, { width: 55, align: 'right' });
+          doc.text(Number(item.taxableValue || item.total).toFixed(2), col.amt, y, { width: 70, align: 'right' });
         } else {
           doc.text(String(item.quantity), col.qty, y, { width: 30, align: 'center' });
-          doc.text(mrp, col.mrp, y, { width: 40, align: 'right' });
-          doc.text(disc, col.disc, y, { width: 40, align: 'right' });
-          doc.text(Number(item.rate).toFixed(2), col.rate, y, { width: 50, align: 'right' });
+          doc.text(rateStr, col.rate, y, { width: 45, align: 'right' });
+          doc.text(discStr, col.disc, y, { width: 50, align: 'right' });
+          doc.text(finalRateStr, col.final, y, { width: 55, align: 'right' });
           doc.text(Number(item.total).toFixed(2), col.amt, y, { width: 70, align: 'right' });
         }
         
@@ -208,10 +205,10 @@ const generateInvoicePDF = (invoice) => {
             doc.text('GST %', col.gst, pthY, { width: 35, align: 'center' });
           }
           doc.text('Qty', col.qty, pthY, { width: 30, align: 'center' });
-          doc.text('MRP', col.mrp, pthY, { width: 40, align: 'right' });
-          doc.text('Disc', col.disc, pthY, { width: 40, align: 'right' });
-          doc.text('Rate', col.rate, pthY, { width: 50, align: 'right' });
-          doc.text('Amount (Rs)', col.amt, pthY, { width: 70, align: 'right' });
+          doc.text('Rate', col.rate, pthY, { width: 45, align: 'right' });
+          doc.text('Disc(%)', col.disc, pthY, { width: 50, align: 'right' });
+          doc.text('Final Rate', col.final, pthY, { width: 55, align: 'right' });
+          doc.text('Total Amount', col.amt, pthY, { width: 70, align: 'right' });
           nextY += 28;
         }
         nextY = drawRow(item, i, nextY);

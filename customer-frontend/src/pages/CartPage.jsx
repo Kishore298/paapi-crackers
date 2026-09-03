@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ArrowRight, Trash2, ArrowLeft, X } from 'lucide-react';
 import useCartStore from '../store/cartStore';
@@ -20,6 +20,10 @@ const CartPage = ({ settings }) => {
   const isFreeDelivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold;
   const minOrderAmount = settings?.orders?.minOrderAmount || 0;
   const maxOrderAmount = settings?.orders?.maxOrderAmount || 0;
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleClearCart = () => {
     setShowClearConfirm(true);
@@ -75,10 +79,10 @@ const CartPage = ({ settings }) => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative pb-[250px] lg:pb-0">
         {/* Cart Items */}
         <div className="lg:col-span-2">
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 pb-4">
             {items.map((item) => (
               <div key={item.isCombo ? item.comboId : item.productId} className="card p-4 flex gap-4 items-center">
               <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
@@ -105,12 +109,15 @@ const CartPage = ({ settings }) => {
                 {item.isCombo ? (
                   <span className="badge bg-primary-lighter text-primary text-[10px] mb-2">COMBO</span>
                 ) : (
-                  <p className="text-xs text-text-secondary mb-2">{item.sku}</p>
+                  <p className="text-xs text-text-secondary mb-2">{item.packQuantity || '1'} pcs</p>
                 )}
 
                 <div className="flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-2">
                     <span className="price-green font-bold text-lg">{formatCurrency(item.price)}</span>
+                    {item.mrp > item.price && (
+                      <span className="text-text-secondary line-through text-xs">{formatCurrency(item.mrp)}</span>
+                    )}
                   </div>
                   <QuantityControl
                     quantity={item.quantity}
@@ -132,9 +139,9 @@ const CartPage = ({ settings }) => {
         </div>
 
         {/* Order Summary */}
-        <div className="lg:col-span-1">
-          <div className="card p-6 sticky top-24">
-            <h2 className="text-xl font-bold text-text-primary mb-6">Order Summary</h2>
+        <div className="lg:col-span-1 absolute lg:relative inset-0 lg:inset-auto h-full lg:h-auto pointer-events-none lg:pointer-events-auto">
+          <div className="card p-4 lg:p-6 sticky bottom-4 lg:bottom-auto lg:top-24 z-10 pointer-events-auto shadow-2xl lg:shadow-sm border border-primary/20 lg:border-border mt-auto top-full -translate-y-full lg:mt-0 lg:translate-y-0 lg:top-24">
+            <h2 className="text-lg lg:text-xl font-bold text-text-primary mb-4 lg:mb-6">Order Summary</h2>
             
             <div className="space-y-4 text-sm">
               <div className="flex justify-between text-text-secondary">

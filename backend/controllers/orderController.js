@@ -14,8 +14,8 @@ const { generateInvoicePDF } = require('../utils/pdfGenerator');
 const generateOrderNumber = async () => {
   const count = await Order.countDocuments();
   const date = new Date();
-  const prefix = `ORD-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
-  return `${prefix}-${String(count + 1).padStart(5, '0')}`;
+  const yearSuffix = date.getFullYear().toString().slice(-2);
+  return `ORD-${yearSuffix}${String(count + 1).padStart(4, '0')}`;
 };
 
 // POST /api/orders (customer places order)
@@ -377,15 +377,27 @@ exports.updateOrderStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Order not found.' });
     }
 
-    // Validate status transitions
+    // Terminal states check
     if (order.status === 'Cancelled') {
       await session.abortTransaction();
       return res.status(400).json({ success: false, message: 'Cannot change status of a cancelled order.' });
     }
-    if (order.status === 'Dispatched') {
+
+    if (order.status === status) {
       await session.abortTransaction();
-      return res.status(400).json({ success: false, message: 'Cannot change status after dispatch.' });
+      return res.status(400).json({ success: false, message: `Order is already ${status}` });
     }
+
+    // Log the transition
+    if (!order.statusHistory) {
+      order.statusHistory = [];
+    }
+    order.statusHistory.push({
+      status: status,
+      reason: reason || `Status changed from ${order.status} to ${status}`,
+      changedBy: cancelledBy || 'admin',
+      changedAt: new Date()
+    });
 
     if (status === 'Dispatched' && order.status === 'Processing') {
       order.status = 'Dispatched';
@@ -394,7 +406,15 @@ exports.updateOrderStatus = async (req, res, next) => {
 
       notificationService.notifyOrderDispatched(order).catch(console.error);
       emailService.sendOrderDispatchedEmail(order).catch(console.error);
-    } else if (status === 'Cancelled' && order.status === 'Processing') {
+    } else if (status === 'Processing' && order.status === 'Dispatched') {
+      // Backward transition: Dispatched to Processing
+      order.status = 'Processing';
+      await order.save({ session });
+      await session.commitTransaction();
+      
+      // We don't need to revert stock because stock was deducted on creation (Processing) 
+      // and Dispatched doesn't change stock. It's just a status change.
+    } else if (status === 'Cancelled' && (order.status === 'Processing' || order.status === 'Dispatched')) {
       if (!reason) {
         await session.abortTransaction();
         return res.status(400).json({ success: false, message: 'Cancellation reason is required.' });
@@ -430,7 +450,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         await stockService.reverseStockForCancellation(
           reversalItems,
           order._id,
-          req.user._id,
+          req.user?._id,
           session
         );
         order.stockReversed = true;

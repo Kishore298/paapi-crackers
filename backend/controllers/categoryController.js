@@ -116,6 +116,51 @@ exports.reorderCategories = async (req, res, next) => {
     await Category.bulkWrite(bulkOps);
 
     const categories = await Category.find().sort({ displayOrder: 1 });
+    
+    // Recalculate global product order to follow the new category sequence
+    const Product = require('../models/Product');
+    const allProducts = await Product.find().sort({ globalOrder: 1 }).lean();
+    
+    const productsByCategory = {};
+    for (const p of allProducts) {
+      const catId = p.category ? p.category.toString() : 'none';
+      if (!productsByCategory[catId]) productsByCategory[catId] = [];
+      productsByCategory[catId].push(p);
+    }
+    
+    let currentGlobalOrder = 0;
+    const productBulkOps = [];
+    
+    for (const cat of categories) {
+      const catProducts = productsByCategory[cat._id.toString()] || [];
+      for (const p of catProducts) {
+        productBulkOps.push({
+          updateOne: {
+            filter: { _id: p._id },
+            update: { globalOrder: currentGlobalOrder++ }
+          }
+        });
+      }
+    }
+    
+    // Handle products with missing or deleted categories
+    const validCatIds = categories.map(c => c._id.toString());
+    for (const p of allProducts) {
+      const catId = p.category ? p.category.toString() : null;
+      if (!catId || !validCatIds.includes(catId)) {
+        productBulkOps.push({
+          updateOne: {
+            filter: { _id: p._id },
+            update: { globalOrder: currentGlobalOrder++ }
+          }
+        });
+      }
+    }
+
+    if (productBulkOps.length > 0) {
+      await Product.bulkWrite(productBulkOps);
+    }
+
     res.json({ success: true, data: categories });
   } catch (error) {
     next(error);

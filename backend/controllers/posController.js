@@ -11,8 +11,8 @@ const gstService = require('../services/gstService');
 const generateBillNumber = async () => {
   const count = await POSSale.countDocuments();
   const date = new Date();
-  const prefix = `POS-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
-  return `${prefix}-${String(count + 1).padStart(5, '0')}`;
+  const yearSuffix = date.getFullYear().toString().slice(-2);
+  return `POS-${yearSuffix}${String(count + 1).padStart(4, '0')}`;
 };
 
 // POST /api/pos/sale
@@ -297,5 +297,79 @@ exports.getTodayStats = async (req, res, next) => {
     res.json({ success: true, data: stats });
   } catch (error) {
     next(error);
+  }
+};
+
+// PUT /api/pos/sales/:id/cancel
+exports.cancelPOSSale = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { reason } = req.body;
+    const sale = await POSSale.findById(req.params.id).session(session);
+
+    if (!sale) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: 'POS sale not found.' });
+    }
+
+    if (sale.status === 'Cancelled') {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'POS sale is already cancelled.' });
+    }
+
+    // Set as cancelled
+    sale.status = 'Cancelled';
+    sale.cancellationReason = reason || 'Cancelled by admin';
+    sale.cancelledAt = new Date();
+    sale.cancelledBy = req.user._id;
+
+    // Reverse stock
+    const reversalItems = [];
+    for (const item of sale.items) {
+      if (!item.isCombo && item.product) {
+        reversalItems.push({ product: item.product, quantity: item.quantity });
+      }
+      if (item.isCombo && item.combo) {
+        const combo = await Combo.findById(item.combo).session(session);
+        if (combo) {
+          for (const cp of combo.products) {
+            reversalItems.push({
+              product: cp.product,
+              quantity: cp.quantity * item.quantity,
+            });
+          }
+        }
+      }
+    }
+
+    await stockService.reverseStockForCancellation(
+      reversalItems,
+      sale._id,
+      req.user._id,
+      session
+    );
+
+    // Reverse Customer metrics
+    if (sale.customer) {
+      await Customer.findByIdAndUpdate(
+        sale.customer,
+        {
+          $inc: { totalOrders: -1, totalSpending: -sale.grandTotal },
+        },
+        { session }
+      );
+    }
+
+    await sale.save({ session });
+    await session.commitTransaction();
+
+    res.json({ success: true, data: sale });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
   }
 };

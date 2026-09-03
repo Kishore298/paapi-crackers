@@ -135,6 +135,14 @@ const orderSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    statusHistory: [
+      {
+        status: String,
+        reason: String,
+        changedAt: { type: Date, default: Date.now },
+        changedBy: String
+      }
+    ]
   },
   {
     timestamps: true,

@@ -126,6 +126,20 @@ const POSPage = () => {
     }
   };
 
+  const handleCancelSale = async (saleId) => {
+    const reason = window.prompt("Enter reason for cancellation:");
+    if (reason === null) return; // User cancelled the prompt
+
+    try {
+      toast.loading('Cancelling sale...', { id: 'cancel-sale' });
+      await API.put(`/pos/sales/${saleId}/cancel`, { reason: reason || 'Cancelled by admin' });
+      toast.success('Sale cancelled successfully', { id: 'cancel-sale' });
+      fetchSales(); // Refresh the list
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to cancel sale', { id: 'cancel-sale' });
+    }
+  };
+
   const filteredSales = sales.filter(s => {
     const term = historySearch.toLowerCase();
     const matchesSearch = s.billNumber.toLowerCase().includes(term) ||
@@ -384,6 +398,9 @@ const POSPage = () => {
                         <td className="p-3">
                           <div className="font-medium text-text-primary">{sale.billNumber}</div>
                           <div className="text-xs text-text-secondary uppercase">{sale.billType} Bill</div>
+                          {sale.status === 'Cancelled' && (
+                            <span className="inline-block mt-1 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">CANCELLED</span>
+                          )}
                         </td>
                         <td className="p-3 text-sm">{formatDateTime(sale.createdAt)}</td>
                         <td className="p-3">
@@ -423,10 +440,21 @@ const POSPage = () => {
                           ) : (
                             <div className="flex flex-col items-end gap-1">
                               <span className="text-xs text-gray-400 mb-1">No Invoice</span>
-                              <div className="flex gap-2">
-                                <button onClick={() => handleGenerateInvoice(sale._id, 'normal')} className="text-xs text-primary hover:underline">Gen Std</button>
-                              </div>
+                              {sale.status !== 'Cancelled' && (
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleGenerateInvoice(sale._id, 'normal')} className="text-xs text-primary hover:underline">Gen Std</button>
+                                </div>
+                              )}
                             </div>
+                          )}
+                          
+                          {sale.status !== 'Cancelled' && (
+                            <button
+                              onClick={() => handleCancelSale(sale._id)}
+                              className="mt-2 text-[10px] text-red-600 hover:underline block w-full text-right"
+                            >
+                              Cancel Bill
+                            </button>
                           )}
                         </td>
                       </tr>

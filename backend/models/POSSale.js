@@ -101,6 +101,22 @@ const posSaleSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Invoice',
     },
+    status: {
+      type: String,
+      enum: ['Completed', 'Cancelled'],
+      default: 'Completed'
+    },
+    cancellationReason: {
+      type: String,
+      trim: true
+    },
+    cancelledAt: {
+      type: Date
+    },
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
   },
   {
     timestamps: true,

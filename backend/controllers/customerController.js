@@ -70,12 +70,26 @@ exports.getCustomers = async (req, res, next) => {
 
     const filter = {};
     if (search) {
+      const searchRegex = { $regex: search, $options: 'i' };
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { gstin: { $regex: search, $options: 'i' } },
+        { name: searchRegex },
+        { phone: searchRegex },
+        { email: searchRegex },
+        { gstin: searchRegex },
       ];
+      
+      // Fast lookup for order ID or POS receipt number
+      const matchingOrders = await Order.find({ orderNumber: searchRegex }, 'customer').lean();
+      const matchingPOS = await POSSale.find({ receiptNumber: searchRegex }, 'customer').lean();
+      
+      const customerIds = [
+        ...matchingOrders.map(o => o.customer),
+        ...matchingPOS.map(p => p.customer)
+      ].filter(id => id); // remove nulls
+
+      if (customerIds.length > 0) {
+        filter.$or.push({ _id: { $in: customerIds } });
+      }
     }
     if (active !== undefined) filter.active = active === 'true';
 

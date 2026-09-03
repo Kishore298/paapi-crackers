@@ -140,9 +140,9 @@ const CheckoutPage = ({ settings }) => {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <h1 className="text-3xl font-bold text-text-primary mb-8">Checkout</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative pb-[300px] lg:pb-0">
         {/* Left Column: Single Form */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 pb-4">
 
           {/* Personal Details */}
           <div className="card overflow-hidden">
@@ -255,8 +255,8 @@ const CheckoutPage = ({ settings }) => {
         </div>
 
         {/* Right Column: Order Summary (Sticky) */}
-        <div className="lg:col-span-1">
-          <div className="card p-5 sticky top-24">
+        <div className="lg:col-span-1 absolute lg:relative inset-0 lg:inset-auto h-full lg:h-auto pointer-events-none lg:pointer-events-auto">
+          <div className="card p-5 sticky bottom-4 lg:bottom-auto lg:top-24 z-10 pointer-events-auto shadow-2xl lg:shadow-sm border border-primary/20 lg:border-border mt-auto top-full -translate-y-full lg:mt-0 lg:translate-y-0 lg:top-24">
             <h3 className="font-bold text-lg text-text-primary mb-4 border-b border-border pb-3">Order Summary</h3>
 
             <div className="max-h-60 overflow-y-auto pr-2 mb-4 space-y-3 scrollbar-hide">

@@ -31,7 +31,7 @@ exports.getProducts = async (req, res, next) => {
     else if (sort === 'price_desc') sortObj = { mrp: -1 };
     else if (sort === 'name') sortObj = { name: 1 };
     else if (sort === 'stock') sortObj = { stock: 1 };
-    else sortObj = { category: 1, name: 1 };
+    else sortObj = { globalOrder: 1, category: 1, name: 1 };
 
     const [products, total] = await Promise.all([
       Product.find(filter).populate('category', 'name slug').sort(sortObj).skip(skip).limit(parseInt(limit)).lean(),
@@ -422,5 +422,37 @@ exports.bulkUpload = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+// PUT /api/products/reorder
+exports.reorderProducts = async (req, res, next) => {
+  const session = await Product.startSession();
+  session.startTransaction();
+  try {
+    const { products } = req.body;
+    if (!Array.isArray(products)) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'Invalid payload.' });
+    }
+
+    const bulkOps = products.map((p) => ({
+      updateOne: {
+        filter: { _id: p.id },
+        update: { globalOrder: p.globalOrder },
+      },
+    }));
+
+    if (bulkOps.length > 0) {
+      await Product.bulkWrite(bulkOps, { session });
+    }
+
+    await session.commitTransaction();
+    res.json({ success: true, message: 'Product order updated successfully.' });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
   }
 };

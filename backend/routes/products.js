@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getProducts, getProduct, createProduct, updateProduct, deleteProduct,
-  updateStock, getBarcode, lookupBySKU, bulkUpload
+  updateStock, getBarcode, lookupBySKU, bulkUpload, reorderProducts
 } = require('../controllers/productController');
 const { protect, optionalAuth } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
@@ -16,6 +16,7 @@ router.get('/:id', getProduct);
 // Admin routes
 router.post('/bulk-upload', protect, roleCheck('inventoryManager'), upload.single('file'), bulkUpload);
 router.post('/', protect, roleCheck('inventoryManager'), upload.single('image'), createProduct);
+router.put('/reorder', protect, roleCheck('inventoryManager', 'admin', 'superAdmin'), reorderProducts);
 router.put('/:id', protect, roleCheck('inventoryManager'), upload.single('image'), updateProduct);
 router.delete('/:id', protect, roleCheck('superAdmin', 'admin'), deleteProduct);
 router.put('/:id/stock', protect, roleCheck('inventoryManager'), updateStock);

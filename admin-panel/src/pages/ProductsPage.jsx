@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Edit2, Trash2, Image as ImageIcon, X, Barcode, Printer, Upload } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Image as ImageIcon, X, Barcode, Printer, Upload, GripVertical } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
@@ -10,6 +10,10 @@ const ProductsPage = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Drag and Drop State
+  const [draggedProductId, setDraggedProductId] = useState(null);
+  const [dragOverProductId, setDragOverProductId] = useState(null);
   
   // Search & Filter
   const [search, setSearch] = useState('');
@@ -151,6 +155,58 @@ const ProductsPage = () => {
     } finally {
       setUploadingExcel(false);
       if (excelRef.current) excelRef.current.value = '';
+    }
+  };
+
+  const handleDragStart = (e, product) => {
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedProductId(product._id);
+  };
+
+  const handleDragOver = (e, product) => {
+    e.preventDefault();
+    if (draggedProductId === product._id) return;
+    setDragOverProductId(product._id);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverProductId(null);
+  };
+
+  const handleDrop = async (e, targetProduct) => {
+    e.preventDefault();
+    setDragOverProductId(null);
+    if (!draggedProductId || draggedProductId === targetProduct._id) return;
+
+    const items = [...products];
+    const fromIndex = items.findIndex(p => p._id === draggedProductId);
+    const toIndex = items.findIndex(p => p._id === targetProduct._id);
+    
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const [movedItem] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, movedItem);
+
+    // Re-assign globalOrders based on their new visual position
+    // Since items contains all products sorted currently, we can just assign 0...N
+    const reordered = items.map((item, index) => ({
+      ...item,
+      globalOrder: index
+    }));
+
+    setProducts(reordered);
+    setDraggedProductId(null);
+
+    try {
+      const orderData = reordered.map(item => ({
+        id: item._id,
+        globalOrder: item.globalOrder
+      }));
+      await API.put('/products/reorder', { products: orderData });
+      toast.success('Products reordered');
+    } catch (error) {
+      toast.error('Failed to save product order');
+      fetchData(false);
     }
   };
 
@@ -303,9 +359,26 @@ const ProductsPage = () => {
               </thead>
               <tbody>
                 {filteredProducts.map(product => (
-                  <tr key={product._id}>
+                  <tr 
+                    key={product._id}
+                    draggable={!search && !categoryFilter}
+                    onDragStart={(e) => handleDragStart(e, product)}
+                    onDragOver={(e) => handleDragOver(e, product)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, product)}
+                    onDragEnd={() => { setDraggedProductId(null); setDragOverProductId(null); }}
+                    className={`
+                      ${draggedProductId === product._id ? 'opacity-50' : ''}
+                      ${dragOverProductId === product._id ? 'bg-primary-lighter/50' : ''}
+                      ${!search && !categoryFilter ? 'cursor-move' : ''}
+                      transition-colors
+                    `}
+                  >
                     <td>
                       <div className="flex items-center gap-3">
+                        {!search && !categoryFilter && (
+                          <GripVertical size={16} className="text-gray-400 flex-shrink-0" />
+                        )}
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                           {product.image?.url ? (
                             <img src={product.image.url} alt="" className="w-full h-full object-cover"/>
