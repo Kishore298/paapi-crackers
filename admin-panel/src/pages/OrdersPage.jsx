@@ -33,10 +33,12 @@ const OrdersPage = () => {
     }
   };
 
-  const handleUpdateStatus = async (orderId, newStatus) => {
+  const handleUpdateStatus = async (orderId, newStatus, reason = null) => {
     try {
       setIsUpdatingStatus(true);
-      const { data } = await API.put(`/orders/${orderId}/status`, { status: newStatus });
+      const payload = { status: newStatus };
+      if (reason) payload.reason = reason;
+      const { data } = await API.put(`/orders/${orderId}/status`, payload);
       toast.success(`Order status updated to ${newStatus}`);
       if (selectedOrder && selectedOrder._id === orderId) {
         setSelectedOrder(data.data);
@@ -226,7 +228,15 @@ const OrdersPage = () => {
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         {order.status !== 'Cancelled' && order.status !== 'Delivered' && (
-                          <button onClick={() => setCancelModal({ isOpen: true, orderId: order._id })} className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 text-red-500 hover:bg-red-50 hover:text-red-600 border-red-100 font-medium whitespace-nowrap">
+                          <button 
+                            onClick={() => {
+                              const reason = window.prompt("Reason for cancellation (will be shown to customer):");
+                              if (reason) {
+                                handleUpdateStatus(order._id, 'Cancelled', reason);
+                              }
+                            }} 
+                            className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1 text-red-500 hover:bg-red-50 hover:text-red-600 border-red-100 font-medium whitespace-nowrap"
+                          >
                             <X size={14} /> Cancel
                           </button>
                         )}
@@ -435,17 +445,6 @@ const OrdersPage = () => {
         document.body
       )}
 
-      <ConfirmModal
-        isOpen={cancelModal.isOpen}
-        onClose={() => setCancelModal({ isOpen: false, orderId: null })}
-        onConfirm={() => {
-          handleUpdateStatus(cancelModal.orderId, 'Cancelled');
-          setCancelModal({ isOpen: false, orderId: null });
-        }}
-        title="Cancel Order"
-        message="Are you sure you want to cancel this order? This action cannot be undone."
-        confirmText="Cancel Order"
-      />
     </div>
   );
 };

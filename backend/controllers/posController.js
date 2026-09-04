@@ -45,6 +45,9 @@ exports.createPOSSale = async (req, res, next) => {
       }
     }
 
+    const settings = await Settings.getSettings();
+    const globalDiscount = Number(settings.pricing?.globalDiscount) || 0;
+
     const saleItems = [];
     const stockDeductions = [];
     let subtotal = 0;
@@ -69,10 +72,17 @@ exports.createPOSSale = async (req, res, next) => {
         }
 
         const itemTotal = combo.price * item.quantity;
+        const originalMrp = combo.price + (combo.savings || 0);
+
         saleItems.push({
           combo: combo._id,
           isCombo: true,
-          productSnapshot: { name: combo.name, image: combo.image?.url },
+          productSnapshot: { 
+            name: combo.name, 
+            image: combo.image?.url,
+            mrp: originalMrp,
+            discountPrice: combo.price
+          },
           quantity: item.quantity,
           price: combo.price,
           total: itemTotal,
@@ -96,6 +106,10 @@ exports.createPOSSale = async (req, res, next) => {
         }
 
         const price = product.mrp;
+        let originalMrp = price;
+        if (globalDiscount > 0 && globalDiscount < 100) {
+          originalMrp = Math.round(price / (1 - (globalDiscount / 100)));
+        }
         const itemTotal = price * item.quantity;
 
         saleItems.push({
@@ -107,6 +121,8 @@ exports.createPOSSale = async (req, res, next) => {
             image: product.image?.url,
             packQuantity: product.packQuantity,
             hsnCode: product.hsnCode,
+            mrp: originalMrp,
+            discountPrice: price
           },
           quantity: item.quantity,
           price,

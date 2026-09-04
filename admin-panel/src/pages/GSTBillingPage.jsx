@@ -290,7 +290,7 @@ const GSTBillingPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-6rem)]">
+    <div className="flex flex-col gap-4 min-h-[calc(100vh-6rem)] lg:h-[calc(100vh-6rem)]">
       <div className="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-border">
         <h2 className="font-bold text-lg text-text-primary flex items-center gap-2"><FileText size={20} className="text-primary" /> GST Billing Terminal</h2>
         <button onClick={() => setActiveView('history')} className="btn-secondary text-sm py-1.5 px-4">
@@ -301,7 +301,7 @@ const GSTBillingPage = () => {
       <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0 overflow-y-auto lg:overflow-hidden">
         
         {/* Left: Product & Customer */}
-        <div className="flex-[1.5] lg:flex-1 flex flex-col gap-4 min-h-0">
+        <div className="flex-none lg:flex-1 flex flex-col gap-4 min-h-0 lg:overflow-y-auto">
           
           {/* Success Message */}
           {lastInvoiceId && (

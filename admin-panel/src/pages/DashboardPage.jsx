@@ -71,23 +71,23 @@ const DashboardPage = () => {
           <p className="text-sm text-text-secondary">Analyze your business performance</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-border rounded-xl p-1">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2 bg-white border border-border rounded-xl p-1 w-full sm:w-auto">
             <input 
               type="date" 
               value={startDate} 
               onChange={e => setStartDate(e.target.value)}
-              className="text-sm px-2 py-1 outline-none text-text-primary bg-transparent"
+              className="text-sm px-2 py-1 outline-none text-text-primary bg-transparent min-w-0 flex-1 sm:flex-none"
             />
             <span className="text-text-secondary text-sm">to</span>
             <input 
               type="date" 
               value={endDate} 
               onChange={e => setEndDate(e.target.value)}
-              className="text-sm px-2 py-1 outline-none text-text-primary bg-transparent"
+              className="text-sm px-2 py-1 outline-none text-text-primary bg-transparent min-w-0 flex-1 sm:flex-none"
             />
           </div>
-          <button onClick={handleExportExcel} className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20">
+          <button onClick={handleExportExcel} className="btn-primary flex items-center gap-2 shadow-lg shadow-primary/20 whitespace-nowrap text-sm w-full sm:w-auto justify-center">
             <Download size={16}/> Export Excel
           </button>
         </div>

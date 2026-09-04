@@ -88,9 +88,12 @@ const HomePage = ({ settings }) => {
     if (!loading && !hasRestoredScroll.current) {
       const savedScroll = sessionStorage.getItem('homeScrollY');
       if (savedScroll) {
-        setTimeout(() => {
-          window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'instant' });
-        }, 100);
+        // Wait for DOM to render the product content, then restore
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'instant' });
+          }, 50);
+        });
       }
       hasRestoredScroll.current = true;
     }

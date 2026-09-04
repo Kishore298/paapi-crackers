@@ -20,6 +20,8 @@ const posSaleItemSchema = new mongoose.Schema(
       image: String,
       packQuantity: String,
       hsnCode: String,
+      mrp: Number,
+      discountPrice: Number,
     },
     quantity: {
       type: Number,

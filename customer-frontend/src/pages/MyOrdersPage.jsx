@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, ChevronRight, User } from 'lucide-react';
+import { Package, ChevronRight, User, Download } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import API from '../api/axios';
 import { formatCurrency, formatDate } from '../utils/formatCurrency';
-import { STATUS_COLORS } from '../utils/constants';
+import { STATUS_COLORS, API_BASE_URL } from '../utils/constants';
 
 const MyOrdersPage = () => {
   const { customer, setCustomer } = useAuthStore();
@@ -97,7 +97,7 @@ const MyOrdersPage = () => {
       ) : (
         <div className="space-y-4">
           {orders.map(order => (
-            <Link key={order._id} to={`/order/${order._id}`} className="block card p-5 hover:shadow-card-hover transition-all">
+            <div key={order._id} className="card p-5 hover:shadow-card-hover transition-all">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-1">
@@ -107,17 +107,35 @@ const MyOrdersPage = () => {
                   <p className="text-sm text-text-secondary">Placed on {formatDate(order.createdAt)} · {order.items.length} items</p>
                 </div>
                 
-                <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t sm:border-t-0 border-border pt-3 sm:pt-0">
+                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto border-t sm:border-t-0 border-border pt-3 sm:pt-0">
                   <div className="text-left sm:text-right">
                     <p className="text-xs text-text-secondary">Total</p>
                     <p className="font-bold text-primary text-lg">{formatCurrency(order.grandTotal)}</p>
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-text-secondary group-hover:bg-primary-lighter group-hover:text-primary transition-colors">
-                    <ChevronRight size={20} />
+                  <div className="flex items-center gap-2">
+                    {order.invoice && (
+                      <a
+                        href={`${API_BASE_URL}/invoices/${order.invoice?.invoiceNumber || order.invoice}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-primary bg-primary-lighter hover:bg-primary/20 px-3 py-2 rounded-lg transition-colors flex items-center gap-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Download size={14} />
+                        Invoice
+                      </a>
+                    )}
+                    <Link
+                      to={`/order/${order._id}`}
+                      className="text-xs font-medium text-white bg-primary hover:bg-primary/90 px-3 py-2 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      View Details
+                      <ChevronRight size={14} />
+                    </Link>
                   </div>
                 </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

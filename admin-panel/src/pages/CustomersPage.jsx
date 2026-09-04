@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingBag, Download, Eye, X } from 'lucide-react';
+import { Search, ShoppingBag, Download, Eye, X, FileText, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency, formatDate, formatDateTime } from '../utils/format';
 
 const CustomersPage = () => {
   const [customers, setCustomers] = useState([]);
@@ -17,6 +17,9 @@ const CustomersPage = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerDetails, setCustomerDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+
+  // Selected order/pos detail for drill-down popup
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null); // { type: 'online'|'pos', data: {...} }
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -92,16 +95,16 @@ const CustomersPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">Customers</h1>
           <p className="text-sm text-text-secondary">View customer database and their value</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={handleExportCSV} className="btn-secondary flex items-center gap-2">
-            <Download size={18} /> Export CSV
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <button onClick={handleExportCSV} className="btn-secondary flex-1 sm:flex-none flex items-center justify-center gap-2 text-sm sm:text-base">
+            <Download size={18} /> Export
           </button>
-          <button onClick={() => setIsModalOpen(true)} className="btn-primary flex items-center gap-2">
+          <button onClick={() => setIsModalOpen(true)} className="btn-primary flex-1 sm:flex-none flex items-center justify-center gap-2 text-sm sm:text-base">
             <ShoppingBag size={18} /> Add Customer
           </button>
         </div>
@@ -280,6 +283,7 @@ const CustomersPage = () => {
                               <th className="p-3 font-medium text-text-secondary">Items</th>
                               <th className="p-3 font-medium text-text-secondary">Total</th>
                               <th className="p-3 font-medium text-text-secondary">Status</th>
+                              <th className="p-3 font-medium text-text-secondary">Action</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -298,6 +302,15 @@ const CustomersPage = () => {
                                     {order.status}
                                   </span>
                                 </td>
+                                <td className="p-3">
+                                  <button
+                                    onClick={() => setSelectedOrderDetail({ type: 'online', data: order })}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="View Details"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -315,17 +328,19 @@ const CustomersPage = () => {
                         <table className="table w-full text-sm">
                           <thead>
                             <tr className="bg-gray-50 text-left">
-                              <th className="p-3 font-medium text-text-secondary">Receipt No</th>
+                              <th className="p-3 font-medium text-text-secondary">Bill No</th>
                               <th className="p-3 font-medium text-text-secondary">Date</th>
                               <th className="p-3 font-medium text-text-secondary">Items</th>
                               <th className="p-3 font-medium text-text-secondary">Total</th>
                               <th className="p-3 font-medium text-text-secondary">Payment</th>
+                              <th className="p-3 font-medium text-text-secondary">Status</th>
+                              <th className="p-3 font-medium text-text-secondary">Action</th>
                             </tr>
                           </thead>
                           <tbody>
                             {customerDetails.posSales.map(sale => (
                               <tr key={sale._id} className="border-t border-border">
-                                <td className="p-3 font-medium text-gray-900">{sale.receiptNumber}</td>
+                                <td className="p-3 font-medium text-gray-900">{sale.billNumber || '-'}</td>
                                 <td className="p-3 text-gray-600">{formatDate(sale.createdAt)}</td>
                                 <td className="p-3 text-gray-600">{sale.items?.length || 0} items</td>
                                 <td className="p-3 font-medium text-gray-900">{formatCurrency(sale.grandTotal)}</td>
@@ -333,6 +348,22 @@ const CustomersPage = () => {
                                   <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-[10px] font-bold uppercase">
                                     {sale.paymentMethod}
                                   </span>
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                                    sale.status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                  }`}>
+                                    {sale.status === 'Cancelled' ? 'Cancelled' : 'Billed'}
+                                  </span>
+                                </td>
+                                <td className="p-3">
+                                  <button
+                                    onClick={() => setSelectedOrderDetail({ type: 'pos', data: sale })}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="View Details"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
                                 </td>
                               </tr>
                             ))}
@@ -344,6 +375,134 @@ const CustomersPage = () => {
                     )}
                   </div>
                 </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Order / POS Detail Popup */}
+      {selectedOrderDetail && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 bg-gray-50 border-b border-border">
+              <div>
+                {selectedOrderDetail.type === 'online' ? (
+                  <h2 className="text-xl font-bold text-text-primary">Order #{selectedOrderDetail.data.orderNumber}</h2>
+                ) : (
+                  <h2 className="text-xl font-bold text-text-primary">POS Bill: {selectedOrderDetail.data.billNumber}</h2>
+                )}
+                <p className="text-sm text-text-secondary mt-1">{formatDateTime(selectedOrderDetail.data.createdAt)}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                  selectedOrderDetail.type === 'pos'
+                    ? selectedOrderDetail.data.status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                    : selectedOrderDetail.data.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                      selectedOrderDetail.data.status === 'Dispatched' ? 'bg-indigo-100 text-indigo-700' :
+                      selectedOrderDetail.data.status === 'Delivered' ? 'bg-green-100 text-green-700' :
+                      selectedOrderDetail.data.status === 'Processing' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {selectedOrderDetail.type === 'pos'
+                    ? (selectedOrderDetail.data.status === 'Cancelled' ? 'Cancelled' : 'Billed')
+                    : selectedOrderDetail.data.status}
+                </span>
+                <button onClick={() => setSelectedOrderDetail(null)} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              
+              {/* Customer / Payment Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2">Customer</h3>
+                  <p className="font-medium text-gray-900">
+                    {selectedOrderDetail.type === 'online'
+                      ? selectedOrderDetail.data.customerDetails?.name
+                      : selectedOrderDetail.data.customerName}
+                  </p>
+                  <p className="text-sm text-text-secondary">
+                    {selectedOrderDetail.type === 'online'
+                      ? selectedOrderDetail.data.customerDetails?.phone
+                      : selectedOrderDetail.data.customerPhone}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2">Payment</h3>
+                  <p className="font-medium text-gray-900 uppercase">{selectedOrderDetail.data.paymentMethod}</p>
+                  <p className="text-sm text-text-secondary">
+                    Grand Total: <span className="font-bold text-primary">{formatCurrency(selectedOrderDetail.data.grandTotal)}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-3">Items</h3>
+                <div className="space-y-2">
+                  {(selectedOrderDetail.data.items || []).map((item, i) => {
+                    const snap = item.productSnapshot || {};
+                    const name = snap.name || item.name || 'Unknown';
+                    const price = item.price || snap.discountPrice || snap.mrp || 0;
+                    const qty = item.quantity || 1;
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-3 bg-white border border-border rounded-xl">
+                        {snap.image ? (
+                          <img src={snap.image} alt={name} className="w-10 h-10 rounded-lg object-cover bg-gray-50 flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <Package size={16} className="text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 text-sm truncate">{name}</p>
+                          <p className="text-xs text-text-secondary">Qty: {qty}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-sm text-gray-900">{formatCurrency(price * qty)}</p>
+                          <p className="text-xs text-text-secondary">{formatCurrency(price)} each</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="bg-primary-lighter/20 p-4 rounded-xl space-y-2 text-sm">
+                <div className="flex justify-between text-text-secondary">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(selectedOrderDetail.data.subtotal || selectedOrderDetail.data.grandTotal)}</span>
+                </div>
+                {selectedOrderDetail.type === 'online' && selectedOrderDetail.data.deliveryCharge > 0 && (
+                  <div className="flex justify-between text-text-secondary">
+                    <span>Delivery</span>
+                    <span>{formatCurrency(selectedOrderDetail.data.deliveryCharge)}</span>
+                  </div>
+                )}
+                {selectedOrderDetail.data.manualDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Manual Discount</span>
+                    <span>-{formatCurrency(selectedOrderDetail.data.manualDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-base border-t border-border pt-2 mt-2">
+                  <span>Grand Total</span>
+                  <span className="text-primary">{formatCurrency(selectedOrderDetail.data.grandTotal)}</span>
+                </div>
+              </div>
+
+              {/* Cancellation info if applicable */}
+              {selectedOrderDetail.data.status === 'Cancelled' && selectedOrderDetail.data.cancellationReason && (
+                <div className="bg-red-50 border border-red-200 p-4 rounded-xl">
+                  <p className="text-xs font-bold uppercase text-red-700 mb-1">Cancellation Reason</p>
+                  <p className="text-sm text-red-700">{selectedOrderDetail.data.cancellationReason}</p>
+                </div>
               )}
             </div>
           </div>

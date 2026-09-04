@@ -470,9 +470,9 @@ const POSPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4 h-[calc(100vh-6rem)]">
+    <div className="flex flex-col gap-4 lg:h-[calc(100vh-6rem)]">
       {lastInvoiceId && (
-        <div className="bg-green-50 border border-green-100 p-3 rounded-xl flex justify-between items-center shadow-sm">
+        <div className="bg-green-50 border border-green-100 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
           <span className="text-green-800 text-sm font-medium">Last Sale Completed Successfully</span>
           <div className="flex gap-2">
             <button onClick={handleDownloadLastInvoice} className="text-xs bg-white border border-green-200 text-green-700 px-3 py-1.5 rounded hover:bg-green-50">Download PDF</button>
@@ -503,22 +503,22 @@ const POSPage = () => {
                 
                 {/* Search Dropdown / Results */}
                 {search.trim().length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border rounded-xl shadow-xl max-h-80 overflow-y-auto z-50 p-2">
+                  <div className="absolute top-full -left-2 -right-12 sm:left-0 sm:right-0 mt-2 bg-white border border-border rounded-xl shadow-xl max-h-80 overflow-y-auto z-50 p-2">
                     {filteredProducts.length === 0 ? (
                       <p className="text-sm text-text-secondary text-center py-4">No products found</p>
                     ) : (
                       filteredProducts.map(product => (
                         <div
                           key={product._id}
-                          className={`w-full text-left p-3 rounded-lg flex items-center justify-between border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${product.stock === 0 ? 'opacity-50 grayscale' : ''}`}
+                          className={`w-full text-left p-3 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${product.stock === 0 ? 'opacity-50 grayscale' : ''}`}
                         >
                           <div className="flex-1">
-                            <p className="font-semibold text-sm text-text-primary mb-0.5">{product.name}</p>
+                            <p className="font-semibold text-sm text-text-primary mb-0.5 leading-tight">{product.name}</p>
                             <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${product.stock === 0 ? 'bg-red-100 text-red-700' : 'text-green-600 bg-green-50'}`}>
                               {product.stock} in stock
                             </span>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                             <div className="text-right">
                               <span className="font-bold text-primary text-sm block">
                                 {formatCurrency(product.discountPrice || product.mrp)}
@@ -578,7 +578,7 @@ const POSPage = () => {
           </div>
 
           {/* Cart Items Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex-1 flex flex-col lg:min-h-0 lg:overflow-hidden">
             <h3 className="font-bold text-lg mb-4 text-text-primary">Cart Items</h3>
             <div className="flex-1 overflow-y-auto pr-2 space-y-3">
               {cart.length === 0 ? (

@@ -132,8 +132,8 @@ const generateInvoicePDF = (invoice) => {
         doc.text('GST %', col.gst, thY, { width: 35, align: 'center' });
       }
       doc.text('Qty', col.qty, thY, { width: 30, align: 'center' });
-      doc.text('Rate', col.rate, thY, { width: 45, align: 'right' });
-      doc.text('Disc(%)', col.disc, thY, { width: 50, align: 'right' });
+      doc.text('MRP', col.rate, thY, { width: 45, align: 'right' });
+      doc.text('Discount', col.disc, thY, { width: 50, align: 'right' });
       doc.text('Final Rate', col.final, thY, { width: 55, align: 'right' });
       doc.text('Total Amount', col.amt, thY, { width: 70, align: 'right' });
       doc.y = thY + 15;
@@ -154,16 +154,16 @@ const generateInvoicePDF = (invoice) => {
         doc.fontSize(9).font('Helvetica').fillColor(lightGray);
         
         const rateVal = Number(item.productSnapshot?.mrp || item.rate || 0);
-        let discPercent = 0;
+        let discAmount = 0;
         
-        // Calculate discount percentage based on rate and final rate
+        // Calculate discount amount based on original rate and final rate
         const finalRateVal = Number(item.rate); // The sold price (discounted)
         if (rateVal > finalRateVal && rateVal > 0) {
-          discPercent = ((rateVal - finalRateVal) / rateVal) * 100;
+          discAmount = rateVal - finalRateVal;
         }
 
         const rateStr = rateVal.toFixed(2);
-        const discStr = discPercent > 0 ? `${discPercent.toFixed(0)}%` : '-';
+        const discStr = discAmount > 0 ? discAmount.toFixed(2) : '-';
         const finalRateStr = finalRateVal.toFixed(2);
 
         doc.text(String(index + 1), col.hash, y);
@@ -206,7 +206,7 @@ const generateInvoicePDF = (invoice) => {
           }
           doc.text('Qty', col.qty, pthY, { width: 30, align: 'center' });
           doc.text('Rate', col.rate, pthY, { width: 45, align: 'right' });
-          doc.text('Disc(%)', col.disc, pthY, { width: 50, align: 'right' });
+          doc.text('Discount', col.disc, pthY, { width: 50, align: 'right' });
           doc.text('Final Rate', col.final, pthY, { width: 55, align: 'right' });
           doc.text('Total Amount', col.amt, pthY, { width: 70, align: 'right' });
           nextY += 28;

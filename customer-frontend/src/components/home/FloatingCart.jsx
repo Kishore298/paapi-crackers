@@ -19,10 +19,10 @@ const FloatingCart = () => {
     .map((item) => item.image);
 
   return (
-    <div className="fixed bottom-5 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none w-max max-w-[calc(100vw-5rem)]">
       <button
         onClick={() => navigate('/cart')}
-        className="pointer-events-auto flex items-center gap-2 pl-2 pr-4 py-2 rounded-2xl shadow-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        className="pointer-events-auto flex items-center pl-2 pr-4 py-2 rounded-2xl shadow-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
         style={{
           background: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
           boxShadow: '0 8px 32px rgba(124, 58, 237, 0.45), 0 2px 8px rgba(0,0,0,0.18)',
@@ -58,16 +58,21 @@ const FloatingCart = () => {
         </div>
 
         {/* Spacer after stacked images */}
-        <div style={{ width: productImages.length > 1 ? (productImages.length - 1) * 20 : 4 }} />
+        <div style={{ width: productImages.length > 1 ? (productImages.length - 1) * 20 : 8 }} />
 
         {/* Center: item count */}
-        <div className="text-left pr-2">
+        <div className="text-left pr-3 border-r border-white/20 mr-3">
           <p className="text-white text-[10px] opacity-75 leading-tight">
             {itemCount} {itemCount === 1 ? 'item' : 'items'}
           </p>
           <p className="text-white font-bold text-sm leading-tight">
             {formatCurrency(subtotal)}
           </p>
+        </div>
+
+        {/* Right: Cart Text & Icon */}
+        <div className="flex items-center gap-1 text-white font-bold text-sm">
+          Cart <ArrowRight size={16} />
         </div>
       </button>
     </div>

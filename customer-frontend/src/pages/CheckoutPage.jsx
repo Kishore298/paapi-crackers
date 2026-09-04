@@ -255,8 +255,8 @@ const CheckoutPage = ({ settings }) => {
         </div>
 
         {/* Right Column: Order Summary (Sticky) */}
-        <div className="lg:col-span-1 absolute lg:relative inset-0 lg:inset-auto h-full lg:h-auto pointer-events-none lg:pointer-events-auto">
-          <div className="card p-5 sticky bottom-4 lg:bottom-auto lg:top-24 z-10 pointer-events-auto shadow-2xl lg:shadow-sm border border-primary/20 lg:border-border mt-auto top-full -translate-y-full lg:mt-0 lg:translate-y-0 lg:top-24">
+        <div className="lg:col-span-1 mt-6 lg:mt-0">
+          <div className="card p-5 lg:sticky lg:top-24 z-10 shadow-lg lg:shadow-sm border border-primary/20 lg:border-border">
             <h3 className="font-bold text-lg text-text-primary mb-4 border-b border-border pb-3">Order Summary</h3>
 
             <div className="max-h-60 overflow-y-auto pr-2 mb-4 space-y-3 scrollbar-hide">

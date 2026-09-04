@@ -7,6 +7,7 @@ const invoiceItemSchema = new mongoose.Schema(
       sku: { type: String },
       hsnCode: { type: String },
       packQuantity: { type: String },
+      mrp: { type: Number },
     },
     quantity: {
       type: Number,
