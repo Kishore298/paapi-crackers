@@ -29,10 +29,18 @@ const CheckoutPage = ({ settings }) => {
     pincode: '',
   });
 
-  const deliveryCharge = settings?.delivery?.deliveryCharge || 0;
-  const freeDeliveryThreshold = settings?.delivery?.freeDeliveryThreshold || 0;
-  const isFreeDelivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold;
-  const grandTotal = subtotal + (isFreeDelivery ? 0 : deliveryCharge);
+  const globalDiscount = Number(settings?.pricing?.globalDiscount) || 0;
+  const subtotalBeforeDiscount = items.reduce((sum, item) => {
+    let originalPrice = item.price;
+    if (globalDiscount > 0 && globalDiscount < 100 && !item.isCombo) {
+       originalPrice = Math.round(item.price / (1 - (globalDiscount / 100)));
+    } else if (item.mrp) {
+       originalPrice = item.mrp;
+    }
+    return sum + (originalPrice * item.quantity);
+  }, 0);
+  const discountAmount = subtotalBeforeDiscount - subtotal;
+  const grandTotal = subtotal; // Delivery completely disabled
 
   useEffect(() => {
     if (items.length === 0) {
@@ -270,21 +278,19 @@ const CheckoutPage = ({ settings }) => {
 
             <div className="border-t border-border pt-3 space-y-2 text-sm mb-4">
               <div className="flex justify-between text-text-secondary">
-                <span>Subtotal</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>Subtotal ({items.reduce((acc, i) => acc + i.quantity, 0)} items)</span>
+                <span>{formatCurrency(subtotalBeforeDiscount)}</span>
               </div>
-              <div className="flex justify-between text-text-secondary">
-                <span>Delivery Charge</span>
-                {isFreeDelivery ? (
-                  <span className="text-success font-medium">Free</span>
-                ) : (
-                  <span>{formatCurrency(deliveryCharge)}</span>
-                )}
-              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-success">
+                  <span>{globalDiscount > 0 ? `${globalDiscount}% Discount Applied` : 'Discount Applied'}</span>
+                  <span>-{formatCurrency(discountAmount)}</span>
+                </div>
+              )}
             </div>
 
             <div className="bg-gray-50 p-4 rounded-xl flex justify-between items-center">
-              <span className="font-bold text-text-primary">Total to Pay</span>
+              <span className="font-bold text-text-primary">Final Amount</span>
               <span className="text-xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
             </div>
 

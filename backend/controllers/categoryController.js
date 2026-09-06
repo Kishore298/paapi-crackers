@@ -7,7 +7,12 @@ exports.getCategories = async (req, res, next) => {
     const filter = {};
     if (req.query.active !== undefined) filter.active = req.query.active === 'true';
 
-    const categories = await Category.find(filter).sort({ displayOrder: 1, name: 1 });
+    const categories = await Category.find(filter).sort({ displayOrder: 1, name: 1 }).lean();
+    
+    categories.forEach(c => {
+      if (c.image?.url) c.image.url = storageProvider.getOptimizedUrl(c.image.url, 500);
+    });
+    
     res.json({ success: true, data: categories });
   } catch (error) {
     next(error);
@@ -17,10 +22,15 @@ exports.getCategories = async (req, res, next) => {
 // GET /api/categories/:id
 exports.getCategory = async (req, res, next) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const category = await Category.findById(req.params.id).lean();
     if (!category) {
       return res.status(404).json({ success: false, message: 'Category not found.' });
     }
+    
+    if (category.image?.url) {
+      category.image.url = storageProvider.getOptimizedUrl(category.image.url, 500);
+    }
+    
     res.json({ success: true, data: category });
   } catch (error) {
     next(error);

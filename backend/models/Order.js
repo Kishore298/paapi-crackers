@@ -74,6 +74,11 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    discount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
 
     deliveryCharge: {
       type: Number,

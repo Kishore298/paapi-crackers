@@ -55,6 +55,7 @@ exports.createOrder = async (req, res, next) => {
     const orderItems = [];
     const stockDeductions = [];
     let subtotal = 0;
+    let totalDiscount = 0;
 
     for (const item of items) {
       if (item.isCombo) {
@@ -95,6 +96,7 @@ exports.createOrder = async (req, res, next) => {
         });
 
         subtotal += itemTotal;
+        totalDiscount += (originalMrp - combo.price) * item.quantity;
 
         // Queue combo stock deductions
         stockDeductions.push({
@@ -144,6 +146,7 @@ exports.createOrder = async (req, res, next) => {
         });
 
         subtotal += itemTotal;
+        totalDiscount += (originalMrp - price) * item.quantity;
 
         stockDeductions.push({
           type: 'product',
@@ -153,11 +156,8 @@ exports.createOrder = async (req, res, next) => {
       }
     }
 
-    // Calculate delivery charge
-    let deliveryCharge = settings.delivery?.deliveryCharge || 0;
-    if (settings.delivery?.freeDeliveryThreshold > 0 && subtotal >= settings.delivery.freeDeliveryThreshold) {
-      deliveryCharge = 0;
-    }
+    // Delivery charges are completely disabled as per user request
+    let deliveryCharge = 0;
 
     // Validate min/max order
     if (settings.orders?.minOrderAmount > 0 && subtotal < settings.orders.minOrderAmount) {
@@ -191,6 +191,7 @@ exports.createOrder = async (req, res, next) => {
           shippingAddress,
           items: orderItems,
           subtotal,
+          discount: totalDiscount,
           deliveryCharge,
           gstAmount: gstInfo.gstAmount,
           grandTotal,

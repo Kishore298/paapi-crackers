@@ -14,7 +14,7 @@ const ProductToolbar = ({
   onFilterChange,
 }) => {
   const [filterOpen, setFilterOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  // Removed unused mobileSearchOpen state
 
   return (
     <>
@@ -31,9 +31,8 @@ const ProductToolbar = ({
               <span className="hidden sm:inline">CATEGORIES</span>
             </button>
 
-            {/* Search — always visible on md+, icon-toggle on mobile */}
-            {/* Desktop search (always expanded) */}
-            <div className="hidden sm:flex items-center h-[42px] sm:h-[48px] bg-gray-100 rounded-full px-3 w-40 sm:w-64 transition-all duration-300">
+            {/* Search — always expanded on all screens */}
+            <div className="flex flex-1 items-center h-[42px] sm:h-[48px] bg-gray-100 rounded-full px-3 w-full sm:w-64 transition-all duration-300 ml-2">
               <Search size={16} className="text-gray-400 mr-2 flex-shrink-0" />
               <input
                 type="text"
@@ -45,36 +44,6 @@ const ProductToolbar = ({
               {searchQuery && (
                 <button onClick={() => onSearchChange('')} className="text-gray-400 hover:text-gray-600 ml-1 flex-shrink-0">
                   <X size={14} />
-                </button>
-              )}
-            </div>
-
-            {/* Mobile search — icon that expands inline */}
-            <div className="flex sm:hidden items-center">
-              {mobileSearchOpen ? (
-                <div className="flex items-center h-[42px] bg-gray-100 rounded-full px-3 w-36 transition-all duration-300">
-                  <Search size={15} className="text-gray-400 mr-1.5 flex-shrink-0" />
-                  <input
-                    autoFocus
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full bg-transparent border-none outline-none text-sm text-gray-800 placeholder-gray-400"
-                  />
-                  <button
-                    onClick={() => { onSearchChange(''); setMobileSearchOpen(false); }}
-                    className="text-gray-400 hover:text-gray-600 ml-1 flex-shrink-0"
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setMobileSearchOpen(true)}
-                  className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-all"
-                >
-                  <Search size={18} />
                 </button>
               )}
             </div>

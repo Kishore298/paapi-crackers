@@ -7,7 +7,12 @@ exports.getBanners = async (req, res, next) => {
     const filter = {};
     if (req.query.active !== undefined) filter.active = req.query.active === 'true';
 
-    const banners = await Banner.find(filter).sort({ displayOrder: 1 });
+    const banners = await Banner.find(filter).sort({ displayOrder: 1 }).lean();
+    
+    banners.forEach(b => {
+      if (b.image?.url) b.image.url = storageProvider.getOptimizedUrl(b.image.url, 1600);
+    });
+    
     res.json({ success: true, data: banners });
   } catch (error) {
     next(error);
@@ -95,7 +100,12 @@ exports.reorderBanners = async (req, res, next) => {
     }));
     await Banner.bulkWrite(bulkOps);
 
-    const banners = await Banner.find().sort({ displayOrder: 1 });
+    const banners = await Banner.find().sort({ displayOrder: 1 }).lean();
+    
+    banners.forEach(b => {
+      if (b.image?.url) b.image.url = storageProvider.getOptimizedUrl(b.image.url, 1600);
+    });
+    
     res.json({ success: true, data: banners });
   } catch (error) {
     next(error);
