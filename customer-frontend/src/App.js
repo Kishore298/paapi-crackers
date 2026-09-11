@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import API from './api/axios';
 import useAuthStore from './store/authStore';
@@ -56,11 +56,18 @@ function App() {
     socket.on('connect', () => {
       if (customer?._id) {
         socket.emit('join', { customerId: customer._id });
+        
+        // Fetch initial notifications
+        API.get('/notifications').then(res => {
+          const { setNotifications } = useNotificationStore.getState();
+          setNotifications(res.data.data, res.data.unreadCount);
+        }).catch(err => console.error('Failed to fetch initial notifications', err));
       }
     });
 
     socket.on('notification', (notification) => {
       addNotification(notification);
+      toast.success(notification.title || 'New Notification', { icon: '🔔' });
     });
 
     socket.on('online-sales-status', ({ enabled }) => {

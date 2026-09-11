@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import useAuthStore from './store/authStore';
 import useNotificationStore from './store/notificationStore';
+import API from './api/axios';
 
 // Components
 import Layout from './components/layout/Layout';
@@ -42,7 +43,15 @@ function App() {
 
   React.useEffect(() => {
     if (user?.role && ['superAdmin', 'admin'].includes(user.role)) {
-      const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const socketUrl = process.env.REACT_APP_SOCKET_URL || apiUrl.replace(/\/api\/?$/, '');
+      const socket = io(socketUrl);
+      
+      // Fetch initial notifications
+      API.get('/notifications').then(res => {
+        const { setNotifications } = useNotificationStore.getState();
+        setNotifications(res.data.data, res.data.unreadCount);
+      }).catch(err => console.error('Failed to fetch initial notifications', err));
       
       socket.emit('join', { role: 'admin' });
       

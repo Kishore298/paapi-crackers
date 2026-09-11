@@ -13,11 +13,23 @@ const CartPage = ({ settings }) => {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const globalDiscount = Number(settings?.pricing?.globalDiscount) || 0;
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  
+  const subtotalBeforeDiscount = items.reduce((sum, item) => {
+    let originalPrice = item.price;
+    if (globalDiscount > 0 && globalDiscount < 100 && !item.isCombo) {
+       originalPrice = Math.round(item.price / (1 - (globalDiscount / 100)));
+    } else if (item.mrp) {
+       originalPrice = item.mrp;
+    }
+    return sum + (originalPrice * item.quantity);
+  }, 0);
+
+  const finalSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discountAmount = subtotalBeforeDiscount - finalSubtotal;
 
   const deliveryCharge = settings?.delivery?.deliveryCharge || 0;
   const freeDeliveryThreshold = settings?.delivery?.freeDeliveryThreshold || 0;
-  const isFreeDelivery = freeDeliveryThreshold > 0 && subtotal >= freeDeliveryThreshold;
+  const isFreeDelivery = freeDeliveryThreshold > 0 && finalSubtotal >= freeDeliveryThreshold;
   const minOrderAmount = settings?.orders?.minOrderAmount || 0;
   const maxOrderAmount = settings?.orders?.maxOrderAmount || 0;
 
@@ -38,11 +50,11 @@ const CartPage = ({ settings }) => {
   };
 
   const handleCheckout = () => {
-    if (minOrderAmount > 0 && subtotal < minOrderAmount) {
+    if (minOrderAmount > 0 && finalSubtotal < minOrderAmount) {
       alert(`Minimum order amount is ${formatCurrency(minOrderAmount)}`);
       return;
     }
-    if (maxOrderAmount > 0 && subtotal > maxOrderAmount) {
+    if (maxOrderAmount > 0 && finalSubtotal > maxOrderAmount) {
       alert(`Maximum order amount is ${formatCurrency(maxOrderAmount)}`);
       return;
     }
@@ -159,17 +171,17 @@ const CartPage = ({ settings }) => {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between text-text-secondary">
                   <span>Subtotal ({items.reduce((acc, i) => acc + i.quantity, 0)} items)</span>
-                  <span>{formatCurrency(subtotal)}</span>
+                  <span>{formatCurrency(subtotalBeforeDiscount)}</span>
                 </div>
                 
-                {globalDiscount > 0 && (
+                {discountAmount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>{globalDiscount}% Discount Applied</span>
-                    <span>-{formatCurrency(items.reduce((sum, item) => !item.isCombo ? sum + (item.mrp - item.price) * item.quantity : sum, 0))}</span>
+                    <span>{globalDiscount > 0 ? `${globalDiscount}% Discount Applied` : 'Discount Applied'}</span>
+                    <span>-{formatCurrency(discountAmount)}</span>
                   </div>
                 )}
                 
-                <div className="flex justify-between text-text-secondary">
+                <div className="flex justify-between text-text-secondary hidden">
                   <span>Delivery Charge</span>
                   {isFreeDelivery ? (
                     <span className="text-success font-medium">Free</span>
@@ -179,8 +191,8 @@ const CartPage = ({ settings }) => {
                 </div>
                 
                 {freeDeliveryThreshold > 0 && !isFreeDelivery && (
-                  <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded-xl flex items-center justify-between">
-                    <span>Add {formatCurrency(freeDeliveryThreshold - subtotal)} more for free delivery!</span>
+                  <div className="bg-blue-50 text-blue-700 text-xs p-3 rounded-xl items-center justify-between hidden">
+                    <span>Add {formatCurrency(freeDeliveryThreshold - finalSubtotal)} more for free delivery!</span>
                   </div>
                 )}
 
@@ -188,11 +200,11 @@ const CartPage = ({ settings }) => {
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-lg font-bold text-text-primary">Total</span>
                     <span className="text-2xl font-bold text-primary">
-                      {formatCurrency(subtotal + (isFreeDelivery ? 0 : deliveryCharge))}
+                      {formatCurrency(finalSubtotal)}
                     </span>
                   </div>
 
-                  {minOrderAmount > 0 && subtotal < minOrderAmount && (
+                  {minOrderAmount > 0 && finalSubtotal < minOrderAmount && (
                     <p className="text-discount text-xs text-center mb-4 font-medium">
                       Minimum order amount is {formatCurrency(minOrderAmount)}. Add more items to checkout.
                     </p>
@@ -200,9 +212,9 @@ const CartPage = ({ settings }) => {
 
                   <button
                     onClick={handleCheckout}
-                    disabled={minOrderAmount > 0 && subtotal < minOrderAmount}
+                    disabled={minOrderAmount > 0 && finalSubtotal < minOrderAmount}
                     className={`btn-primary w-full flex items-center justify-center gap-2 ${
-                      minOrderAmount > 0 && subtotal < minOrderAmount ? 'opacity-50 cursor-not-allowed hover:bg-primary hover:shadow-none' : ''
+                      minOrderAmount > 0 && finalSubtotal < minOrderAmount ? 'opacity-50 cursor-not-allowed hover:bg-primary hover:shadow-none' : ''
                     }`}
                   >
                     Proceed to Checkout

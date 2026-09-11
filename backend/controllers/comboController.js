@@ -26,6 +26,17 @@ exports.getCombos = async (req, res, next) => {
         }
       }
 
+      if (comboObj.image?.url) {
+        comboObj.image.url = storageProvider.getOptimizedUrl(comboObj.image.url, 800);
+      }
+      
+      // Also optimize nested product images
+      comboObj.products.forEach(cp => {
+        if (cp.product?.image?.url) {
+          cp.product.image.url = storageProvider.getOptimizedUrl(cp.product.image.url, 300);
+        }
+      });
+
       comboObj.availableStock = maxAvailable === Infinity ? 0 : maxAvailable;
       return comboObj;
     });
@@ -57,6 +68,17 @@ exports.getCombo = async (req, res, next) => {
       }
     }
     comboObj.availableStock = maxAvailable === Infinity ? 0 : maxAvailable;
+
+    if (comboObj.image?.url) {
+      comboObj.image.url = storageProvider.getOptimizedUrl(comboObj.image.url, 1200);
+    }
+    
+    // Also optimize nested product images
+    comboObj.products.forEach(cp => {
+      if (cp.product?.image?.url) {
+        cp.product.image.url = storageProvider.getOptimizedUrl(cp.product.image.url, 300);
+      }
+    });
 
     res.json({ success: true, data: comboObj });
   } catch (error) {

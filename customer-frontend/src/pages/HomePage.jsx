@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+// Removed unused useLocation
 import API from '../api/axios';
 import Banner from '../components/home/Banner';
 import ProductToolbar from '../components/home/ProductToolbar';
@@ -66,7 +66,6 @@ const HomePage = ({ settings }) => {
     }
   }, []);
 
-  const location = useLocation();
   const hasRestoredScroll = useRef(false);
 
   useEffect(() => {

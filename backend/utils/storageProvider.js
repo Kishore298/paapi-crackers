@@ -43,8 +43,23 @@ const getUrl = (publicId) => {
   return cloudinary.url(publicId, { secure: true });
 };
 
+/**
+ * Injects dynamic Cloudinary transformations into an existing secure_url.
+ * Ensures that bandwidth is optimized by limiting width and auto-negotiating format/quality.
+ */
+const getOptimizedUrl = (originalUrl, width = 800) => {
+  if (!originalUrl) return originalUrl;
+  if (!originalUrl.includes('res.cloudinary.com')) return originalUrl;
+  if (originalUrl.includes('/upload/c_limit')) return originalUrl; // Already optimized
+
+  // Inject the transformation string right after /upload/
+  // c_limit ensures we don't upscale small images
+  return originalUrl.replace('/upload/', `/upload/c_limit,w_${width},f_auto,q_auto/`);
+};
+
 module.exports = {
   upload: uploadToCloud,
   delete: deleteFromCloud,
   getUrl,
+  getOptimizedUrl,
 };

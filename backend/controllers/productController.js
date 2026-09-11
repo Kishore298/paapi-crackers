@@ -38,6 +38,11 @@ exports.getProducts = async (req, res, next) => {
       Product.countDocuments(filter),
     ]);
 
+    // Optimize image URLs for the product catalog grid (width 500)
+    products.forEach(p => {
+      if (p.image?.url) p.image.url = storageProvider.getOptimizedUrl(p.image.url, 500);
+    });
+
     res.json({
       success: true,
       data: products,
@@ -56,10 +61,16 @@ exports.getProducts = async (req, res, next) => {
 // GET /api/products/:id
 exports.getProduct = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id).populate('category', 'name slug');
+    const product = await Product.findById(req.params.id).populate('category', 'name slug').lean();
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
+    
+    // Optimize image URL for the product details page (width 1200)
+    if (product.image?.url) {
+      product.image.url = storageProvider.getOptimizedUrl(product.image.url, 1200);
+    }
+    
     res.json({ success: true, data: product });
   } catch (error) {
     next(error);
@@ -239,10 +250,15 @@ exports.getBarcode = async (req, res, next) => {
 // GET /api/products/lookup/:sku (barcode scan lookup)
 exports.lookupBySKU = async (req, res, next) => {
   try {
-    const product = await Product.findOne({ sku: req.params.sku }).populate('category', 'name slug');
+    const product = await Product.findOne({ sku: req.params.sku }).populate('category', 'name slug').lean();
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found for this SKU.' });
     }
+    
+    if (product.image?.url) {
+      product.image.url = storageProvider.getOptimizedUrl(product.image.url, 1200);
+    }
+
     res.json({ success: true, data: product });
   } catch (error) {
     next(error);

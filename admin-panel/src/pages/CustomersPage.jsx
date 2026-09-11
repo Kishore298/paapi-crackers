@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingBag, Download, Eye, X, FileText, Package } from 'lucide-react';
+import { Search, ShoppingBag, Download, Eye, X, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
 import { formatCurrency, formatDate, formatDateTime } from '../utils/format';
@@ -21,14 +21,7 @@ const CustomersPage = () => {
   // Selected order/pos detail for drill-down popup
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null); // { type: 'online'|'pos', data: {...} }
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      fetchCustomers();
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [search]);
-
-  const fetchCustomers = async () => {
+  const fetchCustomers = React.useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await API.get(`/customers?search=${encodeURIComponent(search)}`);
@@ -38,7 +31,14 @@ const CustomersPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchCustomers();
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [search, fetchCustomers]);
 
   const handleViewCustomer = async (id) => {
     try {

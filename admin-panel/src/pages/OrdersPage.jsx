@@ -4,7 +4,6 @@ import { Search, Eye, Truck, PackageCheck, AlertCircle, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import API from '../api/axios';
 import { formatCurrency, formatDateTime } from '../utils/format';
-import ConfirmModal from '../components/common/ConfirmModal';
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
@@ -15,7 +14,6 @@ const OrdersPage = () => {
   // Order Details Modal
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [cancelModal, setCancelModal] = useState({ isOpen: false, orderId: null });
 
   useEffect(() => {
     fetchOrders();
@@ -115,9 +113,10 @@ const OrdersPage = () => {
 
   const filteredOrders = orders.filter(o => {
     const term = search.toLowerCase();
-    const matchesSearch = o.orderNumber.includes(search) || 
+    const cleanSearch = search.replace(/[\s-]/g, '').toLowerCase();
+    const matchesSearch = o.orderNumber.toLowerCase().includes(term) || 
                           o.customerDetails.name.toLowerCase().includes(term) || 
-                          o.customerDetails.phone.includes(search) ||
+                          (o.customerDetails.phone && o.customerDetails.phone.replace(/[\s-]/g, '').includes(cleanSearch)) ||
                           (o.customerDetails.email && o.customerDetails.email.toLowerCase().includes(term));
     const matchesStatus = statusFilter ? o.status === statusFilter : true;
     return matchesSearch && matchesStatus;
@@ -128,7 +127,18 @@ const OrdersPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Online Orders</h1>
+        <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+          Online Orders
+          {orders.filter(o => o.status === 'Pending').length > 0 && (
+            <span className="flex items-center gap-1 bg-orange-100 text-orange-600 px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+              </span>
+              {orders.filter(o => o.status === 'Pending').length} Pending
+            </span>
+          )}
+        </h1>
         <p className="text-sm text-text-secondary">Manage customer orders and fulfillment</p>
       </div>
 
@@ -388,11 +398,10 @@ const OrdersPage = () => {
                   </table>
                   <div className="bg-gray-50 p-4 border-t border-border">
                     <div className="w-64 ml-auto space-y-1.5 text-sm">
-                      <div className="flex justify-between"><span className="text-text-secondary">Subtotal</span><span>{formatCurrency(selectedOrder.subtotal)}</span></div>
+                      <div className="flex justify-between"><span className="text-text-secondary">Total Amount</span><span>{formatCurrency(selectedOrder.subtotal + (selectedOrder.discount || 0))}</span></div>
                       {selectedOrder.discount > 0 && <div className="flex justify-between text-success"><span>Discount</span><span>-{formatCurrency(selectedOrder.discount)}</span></div>}
-                      <div className="flex justify-between"><span className="text-text-secondary">Delivery</span><span>{formatCurrency(selectedOrder.deliveryCharge)}</span></div>
                       {selectedOrder.gstAmount > 0 && <div className="flex justify-between text-xs text-text-secondary pt-1 border-t border-border"><span>Includes GST</span><span>{formatCurrency(selectedOrder.gstAmount)}</span></div>}
-                      <div className="flex justify-between font-bold text-base pt-2 border-t border-border mt-2"><span>Total</span><span className="text-primary">{formatCurrency(selectedOrder.grandTotal)}</span></div>
+                      <div className="flex justify-between font-bold text-base pt-2 border-t border-border mt-2"><span>Final Amount</span><span className="text-primary">{formatCurrency(selectedOrder.grandTotal)}</span></div>
                     </div>
                   </div>
                 </div>
