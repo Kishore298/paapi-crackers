@@ -29,7 +29,7 @@ const FloatingCart = () => {
         }}
       >
         {/* Stacked product images */}
-        <div className="relative flex items-center flex-shrink-0" style={{ width: productImages.length > 0 ? 28 + (productImages.length - 1) * 20 : 40, height: 44 }}>
+        <div className="relative flex items-center flex-shrink-0 mr-3" style={{ width: productImages.length > 0 ? 40 + (productImages.length - 1) * 20 : 40, height: 44 }}>
           {productImages.length > 0 ? (
             productImages.map((url, i) => (
               <div
@@ -56,9 +56,6 @@ const FloatingCart = () => {
             </div>
           )}
         </div>
-
-        {/* Spacer after stacked images */}
-        <div style={{ width: productImages.length > 1 ? (productImages.length - 1) * 20 : 8 }} />
 
         {/* Center: item count */}
         <div className="text-left pr-3 border-r border-white/20 mr-3">
