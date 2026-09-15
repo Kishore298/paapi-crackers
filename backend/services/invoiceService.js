@@ -14,11 +14,21 @@ const generateInvoiceNumber = async (settings) => {
   const prefix = settings.gst?.invoicePrefix || 'INV';
   const fy = settings.gst?.financialYear || '2026-27';
   const fyShort = fy.replace('-', '').slice(-4) || '2627';
+  const fullPrefix = `${prefix}-${fyShort}-`;
 
-  const count = await Invoice.countDocuments();
-  const num = String(count + 1).padStart(5, '0');
+  const lastInvoice = await Invoice.findOne({ invoiceNumber: new RegExp(`^${fullPrefix}`) })
+    .sort({ invoiceNumber: -1 });
 
-  return `${prefix}-${fyShort}-${num}`;
+  let sequence = 1;
+  if (lastInvoice && lastInvoice.invoiceNumber) {
+    const lastSequenceStr = lastInvoice.invoiceNumber.replace(fullPrefix, '');
+    const lastSequence = parseInt(lastSequenceStr, 10);
+    if (!isNaN(lastSequence)) {
+      sequence = lastSequence + 1;
+    }
+  }
+
+  return `${fullPrefix}${String(sequence).padStart(5, '0')}`;
 };
 
 /**
@@ -68,30 +78,33 @@ const generateNormalInvoice = async ({ order, posSale, generatedBy }) => {
     };
   });
 
-  const invoice = await Invoice.create({
-    invoiceNumber,
-    order: order?._id,
-    posSale: posSale?._id,
-    type: 'normal',
-    businessSnapshot: {
-      name: settings.business.name,
-      gstin: settings.business.gstin,
-      address: settings.business.address,
-      city: settings.business.city,
-      state: settings.business.state,
-      pincode: settings.business.pincode,
-      phone: settings.business.phone,
-      email: settings.business.email,
+  const invoice = await Invoice.findOneAndUpdate(
+    { invoiceNumber },
+    {
+      order: order?._id,
+      posSale: posSale?._id,
+      type: 'normal',
+      businessSnapshot: {
+        name: settings.business.name,
+        gstin: settings.business.gstin,
+        address: settings.business.address,
+        city: settings.business.city,
+        state: settings.business.state,
+        pincode: settings.business.pincode,
+        phone: settings.business.phone,
+        email: settings.business.email,
+      },
+      customerSnapshot,
+      items,
+      taxableAmount: source.subtotal,
+      grandTotal: source.grandTotal,
+      discount: source.discount || 0,
+      deliveryCharge: source.deliveryCharge || 0,
+      paymentMethod: source.paymentMethod,
+      generatedBy,
     },
-    customerSnapshot,
-    items,
-    taxableAmount: source.subtotal,
-    grandTotal: source.grandTotal,
-    discount: source.discount || 0,
-    deliveryCharge: source.deliveryCharge || 0,
-    paymentMethod: source.paymentMethod,
-    generatedBy,
-  });
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
   // Link invoice to order/POS sale
   if (order) {
@@ -164,34 +177,37 @@ const generateGSTInvoice = async ({ order, posSale, gstin, customerDetails, gene
         gstin: gstin || posSale.gstin,
       };
 
-  const invoice = await Invoice.create({
-    invoiceNumber,
-    order: order?._id,
-    posSale: posSale?._id,
-    type: 'gst',
-    businessSnapshot: {
-      name: settings.business.name,
-      gstin: settings.business.gstin || settings.gst?.businessGstin,
-      address: settings.business.address,
-      city: settings.business.city,
-      state: settings.business.state,
-      pincode: settings.business.pincode,
-      phone: settings.business.phone,
-      email: settings.business.email,
+  const invoice = await Invoice.findOneAndUpdate(
+    { invoiceNumber },
+    {
+      order: order?._id,
+      posSale: posSale?._id,
+      type: 'gst',
+      businessSnapshot: {
+        name: settings.business.name,
+        gstin: settings.business.gstin || settings.gst?.businessGstin,
+        address: settings.business.address,
+        city: settings.business.city,
+        state: settings.business.state,
+        pincode: settings.business.pincode,
+        phone: settings.business.phone,
+        email: settings.business.email,
+      },
+      customerSnapshot,
+      items: invoiceItems,
+      taxableAmount: gstCalc.taxableAmount,
+      cgstTotal: gstCalc.cgstTotal,
+      sgstTotal: gstCalc.sgstTotal,
+      igstTotal: gstCalc.igstTotal,
+      totalTax: gstCalc.totalTax,
+      discount: source.discount || 0,
+      deliveryCharge: source.deliveryCharge || 0,
+      grandTotal: gstCalc.taxableAmount + gstCalc.totalTax + (source.deliveryCharge || 0),
+      paymentMethod: source.paymentMethod,
+      generatedBy,
     },
-    customerSnapshot,
-    items: invoiceItems,
-    taxableAmount: gstCalc.taxableAmount,
-    cgstTotal: gstCalc.cgstTotal,
-    sgstTotal: gstCalc.sgstTotal,
-    igstTotal: gstCalc.igstTotal,
-    totalTax: gstCalc.totalTax,
-    discount: source.discount || 0,
-    deliveryCharge: source.deliveryCharge || 0,
-    grandTotal: gstCalc.taxableAmount + gstCalc.totalTax + (source.deliveryCharge || 0),
-    paymentMethod: source.paymentMethod,
-    generatedBy,
-  });
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
   // Link invoice
   if (order) {

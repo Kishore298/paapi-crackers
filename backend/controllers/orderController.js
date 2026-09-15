@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const Combo = require('../models/Combo');
 const Customer = require('../models/Customer');
 const Settings = require('../models/Settings');
+const Invoice = require('../models/Invoice');
 const stockService = require('../services/stockService');
 const notificationService = require('../services/notificationService');
 const emailService = require('../services/emailService');
@@ -12,10 +13,36 @@ const { generateInvoicePDF } = require('../utils/pdfGenerator');
 
 // Helper: generate order number
 const generateOrderNumber = async () => {
-  const count = await Order.countDocuments();
   const date = new Date();
   const yearSuffix = date.getFullYear().toString().slice(-2);
-  return `ORD-${yearSuffix}${String(count + 1).padStart(4, '0')}`;
+  const prefix = `ORD-${yearSuffix}`;
+
+  const lastOrder = await Order.findOne({ orderNumber: new RegExp(`^${prefix}`) })
+    .sort({ orderNumber: -1 });
+  
+  const lastInvoice = await Invoice.findOne({ invoiceNumber: new RegExp(`^${prefix}`) })
+    .sort({ invoiceNumber: -1 });
+
+  let maxSequence = 0;
+
+  if (lastOrder && lastOrder.orderNumber) {
+    const lastSequenceStr = lastOrder.orderNumber.replace(prefix, '');
+    const lastSequence = parseInt(lastSequenceStr, 10);
+    if (!isNaN(lastSequence) && lastSequence > maxSequence) {
+      maxSequence = lastSequence;
+    }
+  }
+
+  if (lastInvoice && lastInvoice.invoiceNumber) {
+    const lastSequenceStr = lastInvoice.invoiceNumber.replace(prefix, '');
+    const lastSequence = parseInt(lastSequenceStr, 10);
+    if (!isNaN(lastSequence) && lastSequence > maxSequence) {
+      maxSequence = lastSequence;
+    }
+  }
+
+  const sequence = maxSequence + 1;
+  return `${prefix}${String(sequence).padStart(4, '0')}`;
 };
 
 // POST /api/orders (customer places order)
