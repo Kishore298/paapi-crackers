@@ -254,10 +254,15 @@ exports.createOrder = async (req, res, next) => {
       }
     }
 
-    // Update customer stats
+    // Update customer stats and details
     await Customer.findByIdAndUpdate(
       customerId,
       {
+        $set: {
+          name: customerDetails.name,
+          phone: customerDetails.phone,
+          ...(customerDetails.email !== undefined && { email: customerDetails.email }),
+        },
         $inc: { totalOrders: 1, totalSpending: grandTotal },
         lastOrderDate: new Date(),
       },

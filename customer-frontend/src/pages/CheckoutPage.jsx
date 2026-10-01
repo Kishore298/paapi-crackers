@@ -170,7 +170,6 @@ const CheckoutPage = ({ settings }) => {
                     onChange={handleChange}
                     className="input-field"
                     placeholder="John Doe"
-                    disabled={!!customer}
                   />
                 </div>
                 <div>
@@ -182,7 +181,6 @@ const CheckoutPage = ({ settings }) => {
                     onChange={handleChange}
                     className="input-field"
                     placeholder="10-digit mobile number"
-                    disabled={!!customer}
                   />
                 </div>
                 <div className="md:col-span-2">
