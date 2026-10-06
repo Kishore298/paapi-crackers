@@ -8,11 +8,28 @@ const stockService = require('../services/stockService');
 const gstService = require('../services/gstService');
 
 // Helper: generate POS bill number
-const generateBillNumber = async () => {
-  const count = await POSSale.countDocuments();
+const generateBillNumber = async (customerName = '') => {
   const date = new Date();
   const yearSuffix = date.getFullYear().toString().slice(-2);
-  return `POS-${yearSuffix}${String(count + 1).padStart(4, '0')}`;
+  
+  const safeName = (customerName || 'customer')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase()
+    .substring(0, 15);
+
+  const fullPrefix = `POS-${safeName}-${yearSuffix}`;
+
+  const lastSale = await POSSale.findOne().sort({ createdAt: -1 });
+
+  let sequence = 1;
+  if (lastSale && lastSale.billNumber) {
+    const match = lastSale.billNumber.match(/-(\d{4,5})$/);
+    if (match) {
+      sequence = parseInt(match[1], 10) + 1;
+    }
+  }
+
+  return `${fullPrefix}${String(sequence).padStart(4, '0')}`;
 };
 
 // POST /api/pos/sale
@@ -136,7 +153,7 @@ exports.createPOSSale = async (req, res, next) => {
 
     const gstInfo = await gstService.calculateGSTAmount(subtotal);
     const grandTotal = subtotal;
-    const billNumber = await generateBillNumber();
+    const billNumber = await generateBillNumber(customerName);
 
     const [sale] = await POSSale.create(
       [
@@ -380,6 +397,178 @@ exports.cancelPOSSale = async (req, res, next) => {
 
     await sale.save({ session });
     await session.commitTransaction();
+
+    res.json({ success: true, data: sale });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
+  }
+};
+
+
+// PUT /api/pos/sales/:id
+exports.updatePOSSale = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { customerName, customerPhone, items, paymentMethod, billType, gstin } = req.body;
+    const saleId = req.params.id;
+
+    const sale = await POSSale.findById(saleId).session(session);
+    if (!sale) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: 'POS sale not found.' });
+    }
+
+    if (sale.status === 'Cancelled') {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'Cannot edit a cancelled sale.' });
+    }
+
+    if (!items || items.length === 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'Sale must have at least one item.' });
+    }
+
+    // 1. Reverse old stock
+    const reversalItems = [];
+    for (const item of sale.items) {
+      if (!item.isCombo && item.product) {
+        reversalItems.push({ product: item.product, quantity: item.quantity });
+      }
+      if (item.isCombo && item.combo) {
+        const combo = await Combo.findById(item.combo).session(session);
+        if (combo) {
+          for (const cp of combo.products) {
+            reversalItems.push({ product: cp.product, quantity: cp.quantity * item.quantity });
+          }
+        }
+      }
+    }
+    await stockService.reverseStockForCancellation(reversalItems, sale._id, req.user._id, session);
+
+    // 2. Prepare new items and calculate totals
+    const settings = await Settings.getSettings();
+    const globalDiscount = Number(settings.pricing?.globalDiscount) || 0;
+    const saleItems = [];
+    const stockDeductions = [];
+    let subtotal = 0;
+
+    for (const item of items) {
+      if (item.isCombo) {
+        const combo = await Combo.findById(item.comboId || item.combo).populate('products.product').session(session);
+        if (!combo) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: `Combo not found` });
+        }
+        for (const cp of combo.products) {
+          const product = await Product.findById(cp.product._id || cp.product).session(session);
+          if (!product || product.stock < cp.quantity * item.quantity) {
+            await session.abortTransaction();
+            return res.status(400).json({ success: false, message: `Insufficient stock for combo product` });
+          }
+        }
+        const itemTotal = combo.price * item.quantity;
+        const originalMrp = combo.price + (combo.savings || 0);
+
+        saleItems.push({
+          combo: combo._id,
+          isCombo: true,
+          productSnapshot: { name: combo.name, image: combo.image?.url, mrp: originalMrp, discountPrice: combo.price },
+          quantity: item.quantity,
+          price: combo.price,
+          total: itemTotal,
+        });
+        subtotal += itemTotal;
+        stockDeductions.push({ type: 'combo', comboProducts: combo.products, quantity: item.quantity });
+      } else {
+        const product = await Product.findById(item.productId || item.product).session(session);
+        if (!product) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: `Product not found` });
+        }
+        if (product.stock < item.quantity) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: `Insufficient stock for ${product.name}` });
+        }
+        const price = product.mrp;
+        let originalMrp = price;
+        if (globalDiscount > 0 && globalDiscount < 100) {
+          originalMrp = Math.round(price / (1 - (globalDiscount / 100)));
+        }
+        const itemTotal = price * item.quantity;
+        saleItems.push({
+          product: product._id,
+          isCombo: false,
+          productSnapshot: {
+            name: product.name, sku: product.sku, image: product.image?.url,
+            packQuantity: product.packQuantity, hsnCode: product.hsnCode, mrp: originalMrp, discountPrice: price
+          },
+          quantity: item.quantity,
+          price,
+          total: itemTotal,
+        });
+        subtotal += itemTotal;
+        stockDeductions.push({ type: 'product', productId: product._id, quantity: item.quantity });
+      }
+    }
+
+    const gstInfo = await gstService.calculateGSTAmount(subtotal);
+    const grandTotal = subtotal;
+
+    // 3. Deduct stock for new items
+    for (const deduction of stockDeductions) {
+      if (deduction.type === 'product') {
+        await stockService.deductStockForPOSSale([{ productId: deduction.productId, quantity: deduction.quantity }], sale._id, req.user._id, session);
+      } else if (deduction.type === 'combo') {
+        await stockService.deductStockForComboSale(deduction.comboProducts, deduction.quantity, sale._id, 'POS Sale Edit', req.user._id, session);
+      }
+    }
+
+    // 4. Update Customer stats
+    if (sale.customer) {
+      await Customer.findByIdAndUpdate(sale.customer, { $inc: { totalSpending: -sale.grandTotal } }, { session });
+    }
+    let customerId = sale.customer;
+    if (customerPhone && customerPhone !== sale.customerPhone) {
+      let customer = await Customer.findOne({ phone: customerPhone.trim() }).session(session);
+      if (!customer && customerName) {
+        [customer] = await Customer.create([{ name: customerName.trim(), phone: customerPhone.trim(), source: 'admin' }], { session });
+      }
+      customerId = customer?._id || null;
+    }
+    if (customerId) {
+      await Customer.findByIdAndUpdate(customerId, { $inc: { totalSpending: grandTotal } }, { session });
+    }
+
+    // 5. Update Sale record
+    sale.customerName = customerName || '';
+    sale.customerPhone = customerPhone || '';
+    sale.customer = customerId;
+    sale.items = saleItems;
+    sale.subtotal = subtotal;
+    sale.gstAmount = gstInfo.gstAmount;
+    sale.grandTotal = grandTotal;
+    sale.paymentMethod = paymentMethod || sale.paymentMethod;
+    sale.billType = billType || sale.billType;
+    sale.gstin = gstin || sale.gstin;
+
+    await sale.save({ session });
+
+    await session.commitTransaction();
+
+    // Re-generate invoice if it was generated
+    if (sale.invoice) {
+      const invoiceService = require('../services/invoiceService');
+      if (sale.billType === 'gst') {
+         await invoiceService.generateGSTInvoice({ posSale: sale, gstin: sale.gstin, generatedBy: req.user._id });
+      } else {
+         await invoiceService.generateNormalInvoice({ posSale: sale, generatedBy: req.user._id });
+      }
+    }
 
     res.json({ success: true, data: sale });
   } catch (error) {

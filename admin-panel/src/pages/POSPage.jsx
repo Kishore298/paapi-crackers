@@ -54,25 +54,32 @@ const POSPage = () => {
   const [lastInvoiceId, setLastInvoiceId] = useState(null);
 
   const [activeView, setActiveView] = useState('history'); // 'history' | 'billing'
+  const [editSaleId, setEditSaleId] = useState(null);
 
   // History State
   const [sales, setSales] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   useEffect(() => {
     if (activeView === 'history') {
-      fetchSales();
+      const timer = setTimeout(() => fetchSales(), 300);
+      return () => clearTimeout(timer);
     }
-  }, [activeView]);
+  }, [activeView, historyPage, historySearch, paymentFilter]);
 
   const fetchSales = async () => {
     try {
       setHistoryLoading(true);
-      const { data } = await API.get('/pos/sales', { params: { limit: 100 } });
+      const { data } = await API.get('/pos/sales', {
+        params: { page: historyPage, limit: 20, search: historySearch, paymentMethod: paymentFilter }
+      });
       setSales(data.data);
+      if (data.pagination) setHistoryTotalPages(data.pagination.pages || 1);
     } catch (error) {
       toast.error('Failed to load POS sales');
     } finally {
@@ -126,6 +133,30 @@ const POSPage = () => {
     }
   };
 
+
+  const handleEditSale = async (sale) => {
+    // Need products to be loaded first if not already
+    if (products.length === 0) {
+      await fetchProducts();
+    }
+
+    // Fallback if products fetch didn't finish or didn't find them, we map from the sale snapshot
+    setCart(sale.items.map(item => {
+      const prodId = typeof item.product === 'object' ? item.product._id : item.product;
+      // find in products
+      const p = products.find(p => p._id === prodId);
+      return {
+        product: p || { _id: prodId, ...item.productSnapshot, stock: 1000 },
+        quantity: item.quantity
+      };
+    }));
+
+    setCustomerInfo({ name: sale.customerName || '', phone: sale.customerPhone || '' });
+    setPaymentMethod(sale.paymentMethod || 'cash');
+    setEditSaleId(sale._id);
+    setActiveView('billing');
+  };
+
   const handleCancelSale = async (saleId) => {
     const reason = window.prompt("Enter reason for cancellation:");
     if (reason === null) return; // User cancelled the prompt
@@ -140,16 +171,7 @@ const POSPage = () => {
     }
   };
 
-  const filteredSales = sales.filter(s => {
-    const term = historySearch.toLowerCase();
-    const matchesSearch = s.billNumber.toLowerCase().includes(term) ||
-      (s.customerName || '').toLowerCase().includes(term) ||
-      (s.customerPhone || '').includes(term) ||
-      (s.customerEmail || '').toLowerCase().includes(term) ||
-      (s.invoice?.invoiceNumber || '').toLowerCase().includes(term);
-    const matchesPayment = paymentFilter ? s.paymentMethod === paymentFilter : true;
-    return matchesSearch && matchesPayment;
-  });
+
 
   useEffect(() => {
     if (activeView === 'billing') {
@@ -191,7 +213,7 @@ const POSPage = () => {
     });
     setSearch(''); // clear search after adding
     setSearchQuantities(prev => {
-      const next = {...prev};
+      const next = { ...prev };
       delete next[product._id];
       return next;
     });
@@ -269,7 +291,12 @@ const POSPage = () => {
         manualDiscount: Number(manualDiscount) || 0
       };
 
-      const saleRes = await API.post('/pos/sale', payload);
+      let saleRes;
+      if (editSaleId) {
+        saleRes = await API.put(`/pos/sales/${editSaleId}`, payload);
+      } else {
+        saleRes = await API.post('/pos/sale', payload);
+      }
       const posSaleId = saleRes.data.data._id;
 
       const invoiceRes = await API.post('/invoices/generate', {
@@ -335,7 +362,12 @@ const POSPage = () => {
             <h1 className="text-2xl font-bold text-text-primary">POS Sales History</h1>
             <p className="text-sm text-text-secondary">Track and manage Point of Sale transactions</p>
           </div>
-          <button onClick={() => setActiveView('billing')} className="btn-primary flex items-center gap-2 px-4 py-2">
+          <button onClick={() => {
+            setCart([]);
+            setCustomerInfo({ name: '', phone: '' });
+            setEditSaleId(null);
+            setActiveView('billing');
+          }} className="btn-primary flex items-center gap-2 px-4 py-2">
             <Plus size={18} />
             New POS Sale
           </button>
@@ -371,7 +403,7 @@ const POSPage = () => {
 
           {historyLoading ? (
             <div className="py-20 text-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div></div>
-          ) : (
+          ) : (<>
             <div className="table-container">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
@@ -386,14 +418,14 @@ const POSPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredSales.length === 0 ? (
+                  {sales.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="p-8 text-center text-text-secondary">
                         No POS sales found matching your criteria.
                       </td>
                     </tr>
                   ) : (
-                    filteredSales.map((sale) => (
+                    sales.map((sale) => (
                       <tr key={sale._id} className="border-b border-border hover:bg-gray-50 transition-colors">
                         <td className="p-3">
                           <div className="font-medium text-text-primary">{sale.billNumber}</div>
@@ -447,14 +479,22 @@ const POSPage = () => {
                               )}
                             </div>
                           )}
-                          
+
                           {sale.status !== 'Cancelled' && (
-                            <button
-                              onClick={() => handleCancelSale(sale._id)}
-                              className="mt-2 text-[10px] text-red-600 hover:underline block w-full text-right"
-                            >
-                              Cancel Bill
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleEditSale(sale)}
+                                className="mt-2 text-[10px] text-blue-600 hover:underline block w-full text-right"
+                              >
+                                Edit Bill
+                              </button>
+                              <button
+                                onClick={() => handleCancelSale(sale._id)}
+                                className="mt-2 text-[10px] text-red-600 hover:underline block w-full text-right"
+                              >
+                                Cancel Bill
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>
@@ -463,6 +503,28 @@ const POSPage = () => {
                 </tbody>
               </table>
             </div>
+            {historyTotalPages > 1 && (
+              <div className="flex justify-between items-center mt-4 p-2">
+                <span className="text-sm text-text-secondary">Page {historyPage} of {historyTotalPages}</span>
+                <div className="flex gap-2">
+                  <button 
+                    disabled={historyPage === 1} 
+                    onClick={() => setHistoryPage(p => p - 1)}
+                    className="px-3 py-1 bg-white border border-border rounded hover:bg-gray-50 disabled:opacity-50 text-sm font-medium"
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    disabled={historyPage === historyTotalPages} 
+                    onClick={() => setHistoryPage(p => p + 1)}
+                    className="px-3 py-1 bg-white border border-border rounded hover:bg-gray-50 disabled:opacity-50 text-sm font-medium"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
           )}
         </div>
       </div>
@@ -477,16 +539,16 @@ const POSPage = () => {
           <div className="flex gap-2">
             <button onClick={handleDownloadLastInvoice} className="text-xs bg-white border border-green-200 text-green-700 px-3 py-1.5 rounded hover:bg-green-50">Download PDF</button>
             <button onClick={handleViewLastInvoice} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">View PDF</button>
-            <button onClick={() => setLastInvoiceId(null)} className="text-xs text-gray-500 hover:text-gray-700 ml-2"><X size={16}/></button>
+            <button onClick={() => setLastInvoiceId(null)} className="text-xs text-gray-500 hover:text-gray-700 ml-2"><X size={16} /></button>
           </div>
         </div>
       )}
 
       <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
-        
+
         {/* Left Column: Search and Cart */}
         <div className="flex-1 flex flex-col gap-6 min-h-0">
-          
+
           {/* Search Products Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-border p-5 shrink-0">
             <h3 className="font-bold text-lg mb-4 text-text-primary">Search Products</h3>
@@ -500,7 +562,7 @@ const POSPage = () => {
                   onChange={(e) => setSearch(e.target.value)}
                   className="input-field pl-10 w-full"
                 />
-                
+
                 {/* Search Dropdown / Results */}
                 {search.trim().length > 0 && (
                   <div className="absolute top-full -left-2 -right-12 sm:left-0 sm:right-0 mt-2 bg-white border border-border rounded-xl shadow-xl max-h-80 overflow-y-auto z-50 p-2">
@@ -526,8 +588,8 @@ const POSPage = () => {
                             </div>
                             {product.stock > 0 && (
                               <div className="flex items-center gap-2 bg-white border border-border rounded-lg p-0.5 shadow-sm">
-                                <button 
-                                  onClick={() => setSearchQuantities(prev => ({...prev, [product._id]: Math.max(1, (prev[product._id] || 1) - 1)}))}
+                                <button
+                                  onClick={() => setSearchQuantities(prev => ({ ...prev, [product._id]: Math.max(1, (prev[product._id] || 1) - 1) }))}
                                   className="p-1 hover:bg-gray-100 rounded text-text-secondary"
                                 >
                                   <Minus size={14} />
@@ -541,12 +603,12 @@ const POSPage = () => {
                                     let val = parseInt(e.target.value) || 1;
                                     if (val < 1) val = 1;
                                     if (val > product.stock) val = product.stock;
-                                    setSearchQuantities(prev => ({...prev, [product._id]: val}));
+                                    setSearchQuantities(prev => ({ ...prev, [product._id]: val }));
                                   }}
                                   className="w-10 text-center text-sm font-medium border-none p-0 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none"
                                 />
-                                <button 
-                                  onClick={() => setSearchQuantities(prev => ({...prev, [product._id]: Math.min(product.stock, (prev[product._id] || 1) + 1)}))}
+                                <button
+                                  onClick={() => setSearchQuantities(prev => ({ ...prev, [product._id]: Math.min(product.stock, (prev[product._id] || 1) + 1) }))}
                                   className="p-1 hover:bg-gray-100 rounded text-text-secondary"
                                 >
                                   <Plus size={14} />
@@ -593,7 +655,7 @@ const POSPage = () => {
                       <p className="font-semibold text-sm leading-tight text-text-primary mb-1">{item.product.name}</p>
                       <span className="text-xs text-text-secondary font-mono">{formatCurrency(item.product.discountPrice || item.product.mrp)} / unit</span>
                     </div>
-                    
+
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2 bg-white border border-border rounded-lg p-0.5 shadow-sm">
                         <button onClick={() => item.quantity > 1 ? updateQuantity(item.product._id, -1) : removeFromCart(item.product._id)} className="p-1 hover:bg-gray-100 rounded text-text-secondary"><Minus size={14} /></button>
@@ -614,28 +676,28 @@ const POSPage = () => {
         <div className="w-full lg:w-[400px] flex flex-col gap-6 shrink-0">
           <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex flex-col">
             <h3 className="font-bold text-lg mb-4 text-text-primary">Customer Info</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">Customer Name *</label>
-                <input 
-                  type="text" 
-                  placeholder="Walk-in Customer" 
-                  value={customerInfo.name} 
-                  onChange={e => setCustomerInfo({ ...customerInfo, name: e.target.value })} 
-                  className="input-field py-2.5 text-sm" 
+                <input
+                  type="text"
+                  placeholder="Walk-in Customer"
+                  value={customerInfo.name}
+                  onChange={e => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+                  className="input-field py-2.5 text-sm"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">Phone (auto-fetch)</label>
-                <input 
-                  type="text" 
-                  placeholder="9876543210" 
-                  value={customerInfo.phone} 
+                <input
+                  type="text"
+                  placeholder="9876543210"
+                  value={customerInfo.phone}
                   onChange={e => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
                   onBlur={handlePhoneBlur}
-                  className="input-field py-2.5 text-sm" 
+                  className="input-field py-2.5 text-sm"
                 />
               </div>
 
@@ -643,19 +705,19 @@ const POSPage = () => {
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">Manual Discount (₹)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="0"
-                  placeholder="0" 
-                  value={manualDiscount || ''} 
-                  onChange={e => setManualDiscount(e.target.value)} 
-                  className="input-field py-2.5 text-sm" 
+                  placeholder="0"
+                  value={manualDiscount || ''}
+                  onChange={e => setManualDiscount(e.target.value)}
+                  className="input-field py-2.5 text-sm"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">Payment Method</label>
-                <select 
+                <select
                   value={paymentMethod}
                   onChange={e => setPaymentMethod(e.target.value)}
                   className="input-field py-2.5 text-sm"
@@ -684,7 +746,7 @@ const POSPage = () => {
                 disabled={cart.length === 0 || isProcessing}
                 className="mt-4 bg-white border-2 border-primary text-primary hover:bg-primary-lighter w-full py-2.5 rounded-xl text-sm font-bold flex justify-center items-center gap-2 transition-colors"
               >
-                {isProcessing ? 'Processing...' : 'Generate Bill'}
+                {isProcessing ? 'Processing...' : (editSaleId ? 'Update Bill' : 'Generate Bill')}
               </button>
             </div>
           </div>

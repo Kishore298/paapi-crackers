@@ -19,7 +19,7 @@ exports.getSalesReport = async (req, res, next) => {
     const orderFilter = { status: { $ne: 'Cancelled' } };
     if (Object.keys(dateFilter).length) orderFilter.createdAt = dateFilter;
 
-    const posFilter = {};
+    const posFilter = { status: { $ne: 'Cancelled' } };
     if (Object.keys(dateFilter).length) posFilter.createdAt = dateFilter;
 
     let dateFormat;
@@ -331,7 +331,7 @@ exports.getPaymentReport = async (req, res, next) => {
     ]);
 
     const posPayments = await POSSale.aggregate([
-      { $match: startDate || endDate ? { createdAt: filter.createdAt } : {} },
+      { $match: { status: { $ne: 'Cancelled' }, ...(startDate || endDate ? { createdAt: filter.createdAt } : {}) } },
       {
         $group: {
           _id: '$paymentMethod',

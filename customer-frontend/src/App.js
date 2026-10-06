@@ -58,7 +58,7 @@ function App() {
         socket.emit('join', { customerId: customer._id });
         
         // Fetch initial notifications
-        API.get('/notifications').then(res => {
+        API.get(`/notifications?recipientType=customer&recipientId=${customer._id}`).then(res => {
           const { setNotifications } = useNotificationStore.getState();
           setNotifications(res.data.data, res.data.unreadCount);
         }).catch(err => console.error('Failed to fetch initial notifications', err));

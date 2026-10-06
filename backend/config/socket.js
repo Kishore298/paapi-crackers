@@ -5,9 +5,15 @@ const initSocket = (server) => {
   io = new Server(server, {
     cors: {
       origin: [
-        process.env.CUSTOMER_FRONTEND_URL || 'http://localhost:3000',
-        process.env.ADMIN_FRONTEND_URL || 'http://localhost:3001',
-      ],
+        "https://paapicrackers.com",
+        "https://www.paapicrackers.com",
+        "https://admin.paapicrackers.com",
+        "https://www.admin.paapicrackers.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
+        process.env.CUSTOMER_FRONTEND_URL,
+        process.env.ADMIN_FRONTEND_URL
+      ].filter(Boolean),
       methods: ['GET', 'POST'],
     },
   });

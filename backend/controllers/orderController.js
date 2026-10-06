@@ -12,37 +12,31 @@ const gstService = require('../services/gstService');
 const { generateInvoicePDF } = require('../utils/pdfGenerator');
 
 // Helper: generate order number
-const generateOrderNumber = async () => {
+const generateOrderNumber = async (customerName = '') => {
   const date = new Date();
   const yearSuffix = date.getFullYear().toString().slice(-2);
-  const prefix = `ORD-${yearSuffix}`;
-
-  const lastOrder = await Order.findOne({ orderNumber: new RegExp(`^${prefix}`) })
-    .sort({ orderNumber: -1 });
   
-  const lastInvoice = await Invoice.findOne({ invoiceNumber: new RegExp(`^${prefix}`) })
-    .sort({ invoiceNumber: -1 });
+  const safeName = (customerName || 'customer')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase()
+    .substring(0, 15);
+
+  const fullPrefix = `ORD-${safeName}-${yearSuffix}`;
+
+  const lastOrder = await Order.findOne()
+    .sort({ createdAt: -1 });
 
   let maxSequence = 0;
 
   if (lastOrder && lastOrder.orderNumber) {
-    const lastSequenceStr = lastOrder.orderNumber.replace(prefix, '');
-    const lastSequence = parseInt(lastSequenceStr, 10);
-    if (!isNaN(lastSequence) && lastSequence > maxSequence) {
-      maxSequence = lastSequence;
-    }
-  }
-
-  if (lastInvoice && lastInvoice.invoiceNumber) {
-    const lastSequenceStr = lastInvoice.invoiceNumber.replace(prefix, '');
-    const lastSequence = parseInt(lastSequenceStr, 10);
-    if (!isNaN(lastSequence) && lastSequence > maxSequence) {
-      maxSequence = lastSequence;
+    const match = lastOrder.orderNumber.match(/-(\d{4,5})$/);
+    if (match) {
+      maxSequence = parseInt(match[1], 10);
     }
   }
 
   const sequence = maxSequence + 1;
-  return `${prefix}${String(sequence).padStart(4, '0')}`;
+  return `${fullPrefix}${String(sequence).padStart(5, '0')}`;
 };
 
 // POST /api/orders (customer places order)
@@ -206,7 +200,7 @@ exports.createOrder = async (req, res, next) => {
     const gstInfo = await gstService.calculateGSTAmount(subtotal);
 
     const grandTotal = subtotal + deliveryCharge;
-    const orderNumber = await generateOrderNumber();
+    const orderNumber = await generateOrderNumber(customerDetails.name);
 
     // Create order
     const [order] = await Order.create(
@@ -549,5 +543,194 @@ exports.updatePaymentStatus = async (req, res, next) => {
     res.json({ success: true, data: order });
   } catch (error) {
     next(error);
+  }
+};
+
+
+// PUT /api/orders/:id (Update Order)
+exports.updateOrder = async (req, res, next) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { items, customerDetails, shippingAddress, gstin } = req.body;
+    const orderId = req.params.id;
+
+    const order = await Order.findById(orderId).session(session);
+    if (!order) {
+      await session.abortTransaction();
+      return res.status(404).json({ success: false, message: 'Order not found.' });
+    }
+
+    if (order.status === 'Cancelled' || order.status === 'Delivered' || order.status === 'Dispatched') {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: `Cannot edit order in ${order.status} state.` });
+    }
+
+    if (!items || items.length === 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'Order must have at least one item.' });
+    }
+
+    // 1. Reverse Old Stock
+    const reversalItems = [];
+    for (const item of order.items) {
+      if (!item.isCombo && (item.product || item.productId)) {
+        reversalItems.push({ product: item.product || item.productId, quantity: item.quantity });
+      }
+      if (item.isCombo && (item.combo || item.comboId)) {
+        const combo = await Combo.findById(item.combo || item.comboId).session(session);
+        if (combo) {
+          for (const cp of combo.products) {
+            reversalItems.push({ product: cp.product, quantity: cp.quantity * item.quantity });
+          }
+        }
+      }
+    }
+    // Mock user for stock service
+    const adminUserId = req.user ? req.user._id : null; 
+    await stockService.reverseStockForCancellation(reversalItems, order._id, adminUserId, session);
+
+    // 2. Prepare new items and calculate totals
+    const orderItems = [];
+    const stockDeductions = [];
+    let subtotal = 0;
+    let totalDiscount = 0;
+
+    for (const item of items) {
+      if (item.isCombo) {
+        const comboId = item.comboId || item.combo;
+        const combo = await Combo.findById(comboId).populate('products.product').session(session);
+        if (!combo || !combo.active) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: `Combo not found or inactive: ${comboId}` });
+        }
+
+        for (const cp of combo.products) {
+          const product = await Product.findById(cp.product._id || cp.product).session(session);
+          if (!product || product.stock < cp.quantity * item.quantity) {
+            await session.abortTransaction();
+            return res.status(400).json({ success: false, message: `Insufficient stock for combo ${combo.name}` });
+          }
+        }
+
+        const itemTotal = combo.price * item.quantity;
+        const originalMrp = combo.price + (combo.savings || 0);
+
+        orderItems.push({
+          combo: combo._id,
+          isCombo: true,
+          productSnapshot: {
+            name: combo.name,
+            image: combo.image?.url,
+            mrp: originalMrp,
+            discountPrice: combo.price
+          },
+          quantity: item.quantity,
+          price: combo.price,
+          total: itemTotal,
+        });
+
+        subtotal += itemTotal;
+        totalDiscount += (originalMrp - combo.price) * item.quantity;
+        stockDeductions.push({ type: 'combo', comboProducts: combo.products, quantity: item.quantity });
+      } else {
+        const productId = item.productId || item.product;
+        const product = await Product.findById(productId).session(session);
+        if (!product || !product.active) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: `Product not found: ${productId}` });
+        }
+
+        if (product.stock < item.quantity) {
+          await session.abortTransaction();
+          return res.status(400).json({ success: false, message: `Insufficient stock for ${product.name}` });
+        }
+
+        const price = product.mrp;
+        const discountPrice = product.discountPrice || price;
+        const itemTotal = discountPrice * item.quantity;
+
+        orderItems.push({
+          product: product._id,
+          isCombo: false,
+          productSnapshot: {
+            name: product.name,
+            sku: product.sku,
+            mrp: product.mrp,
+            discountPrice: product.discountPrice,
+            packQuantity: product.packQuantity,
+            image: product.images?.[0]?.url
+          },
+          quantity: item.quantity,
+          price: discountPrice,
+          discount: (price - discountPrice) * item.quantity,
+          total: itemTotal,
+        });
+
+        subtotal += itemTotal;
+        totalDiscount += (price - discountPrice) * item.quantity;
+        stockDeductions.push({ type: 'product', productId: product._id, quantity: item.quantity });
+      }
+    }
+
+    const settings = await Settings.getSettings();
+    const deliveryCharge = settings.shipping?.flatRate || 0;
+    const gstInfo = await gstService.calculateGSTAmount(subtotal);
+    const grandTotal = subtotal + deliveryCharge;
+    const oldGrandTotal = order.grandTotal;
+
+    // 3. Update Order Document
+    order.items = orderItems;
+    order.subtotal = subtotal;
+    order.discount = totalDiscount;
+    order.gstAmount = gstInfo.gstAmount;
+    order.grandTotal = grandTotal;
+    order.deliveryCharge = deliveryCharge;
+    
+    if (customerDetails) {
+      order.customerDetails = { ...order.customerDetails, ...customerDetails };
+    }
+    if (shippingAddress) {
+      order.shippingAddress = { ...order.shippingAddress, ...shippingAddress };
+    }
+    if (gstin !== undefined) {
+      order.gstin = gstin;
+    }
+
+    await order.save({ session });
+
+    // 4. Deduct New Stock
+    for (const deduction of stockDeductions) {
+      if (deduction.type === 'product') {
+        await stockService.deductStockForOnlineSale([{ productId: deduction.productId, quantity: deduction.quantity }], order._id, null, session);
+      } else if (deduction.type === 'combo') {
+        await stockService.deductStockForComboSale(deduction.comboProducts, deduction.quantity, order._id, 'Online Order', null, session);
+      }
+    }
+
+    // 5. Update Customer Spending
+    if (order.customer) {
+      const spendingDiff = grandTotal - oldGrandTotal;
+      await Customer.findByIdAndUpdate(order.customer, {
+        $inc: { totalSpending: spendingDiff }
+      }, { session });
+    }
+
+    // 6. Delete old invoice to force regeneration
+    if (order.invoice) {
+      await Invoice.findByIdAndDelete(order.invoice).session(session);
+      order.invoice = null;
+      await order.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    res.json({ success: true, data: order, message: 'Order updated successfully. Invoice has been reset.' });
+  } catch (error) {
+    await session.abortTransaction();
+    next(error);
+  } finally {
+    session.endSession();
   }
 };

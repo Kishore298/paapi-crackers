@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   createOrder, getOrders, getOrder, getCustomerOrders,
-  updateOrderStatus, updatePaymentStatus,
+  updateOrderStatus, updatePaymentStatus, updateOrder
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
@@ -17,5 +17,6 @@ router.get('/', protect, roleCheck('orderManager'), getOrders);
 router.get('/:id', getOrder);
 router.put('/:id/status', protect, roleCheck('orderManager'), updateOrderStatus);
 router.put('/:id/payment', protect, roleCheck('orderManager'), updatePaymentStatus);
+router.put('/:id', protect, roleCheck('orderManager'), updateOrder);
 
 module.exports = router;

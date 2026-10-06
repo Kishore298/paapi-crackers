@@ -10,21 +10,24 @@ const gstService = require('./gstService');
 /**
  * Generate next invoice number based on prefix and count
  */
-const generateInvoiceNumber = async (settings) => {
-  const prefix = settings.gst?.invoicePrefix || 'INV';
+const generateInvoiceNumber = async (settings, customerName = '') => {
   const fy = settings.gst?.financialYear || '2026-27';
-  const fyShort = fy.replace('-', '').slice(-4) || '2627';
-  const fullPrefix = `${prefix}-${fyShort}-`;
+  const year = fy.split('-')[0] || '2026';
 
-  const lastInvoice = await Invoice.findOne({ invoiceNumber: new RegExp(`^${fullPrefix}`) })
-    .sort({ invoiceNumber: -1 });
+  const safeName = (customerName || 'customer')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toLowerCase()
+    .substring(0, 15); // limit length if needed
+
+  const fullPrefix = `inv-${safeName}-${year}-`;
+
+  const lastInvoice = await Invoice.findOne().sort({ createdAt: -1 });
 
   let sequence = 1;
   if (lastInvoice && lastInvoice.invoiceNumber) {
-    const lastSequenceStr = lastInvoice.invoiceNumber.replace(fullPrefix, '');
-    const lastSequence = parseInt(lastSequenceStr, 10);
-    if (!isNaN(lastSequence)) {
-      sequence = lastSequence + 1;
+    const match = lastInvoice.invoiceNumber.match(/-(\d{5})$/);
+    if (match) {
+      sequence = parseInt(match[1], 10) + 1;
     }
   }
 
@@ -37,25 +40,26 @@ const generateInvoiceNumber = async (settings) => {
 const generateNormalInvoice = async ({ order, posSale, generatedBy }) => {
   const settings = await Settings.getSettings();
   const source = order || posSale;
+  const customerName = order?.customerDetails?.name || posSale?.customerName || 'customer';
 
-  const invoiceNumber = order?.orderNumber || posSale?.billNumber || await generateInvoiceNumber(settings);
+  const invoiceNumber = await generateInvoiceNumber(settings, customerName);
 
   const customerSnapshot = order
     ? {
-        name: order.customerDetails.name,
-        phone: order.customerDetails.phone,
-        email: order.customerDetails.email,
-        address: order.shippingAddress?.address,
-        city: order.shippingAddress?.city,
-        state: order.shippingAddress?.state,
-        pincode: order.shippingAddress?.pincode,
-        gstin: order.gstin,
-      }
+      name: order.customerDetails.name,
+      phone: order.customerDetails.phone,
+      email: order.customerDetails.email,
+      address: order.shippingAddress?.address,
+      city: order.shippingAddress?.city,
+      state: order.shippingAddress?.state,
+      pincode: order.shippingAddress?.pincode,
+      gstin: order.gstin,
+    }
     : {
-        name: posSale.customerName || '',
-        phone: posSale.customerPhone || '',
-        gstin: posSale.gstin,
-      };
+      name: posSale.customerName || '',
+      phone: posSale.customerPhone || '',
+      gstin: posSale.gstin,
+    };
 
   const items = source.items.map((item) => {
     const itemTotal = item.total !== undefined ? item.total : (item.price * item.quantity);
@@ -125,8 +129,9 @@ const generateNormalInvoice = async ({ order, posSale, generatedBy }) => {
 const generateGSTInvoice = async ({ order, posSale, gstin, customerDetails, generatedBy }) => {
   const settings = await Settings.getSettings();
   const source = order || posSale;
+  const customerName = order?.customerDetails?.name || posSale?.customerName || customerDetails?.name || 'customer';
 
-  const invoiceNumber = order?.orderNumber || posSale?.billNumber || await generateInvoiceNumber(settings);
+  const invoiceNumber = await generateInvoiceNumber(settings, customerName);
 
   const customerState = order?.shippingAddress?.state || customerDetails?.state || '';
 
@@ -158,24 +163,24 @@ const generateGSTInvoice = async ({ order, posSale, gstin, customerDetails, gene
 
   const customerSnapshot = order
     ? {
-        name: order.customerDetails.name,
-        phone: order.customerDetails.phone,
-        email: order.customerDetails.email,
-        address: order.shippingAddress?.address,
-        city: order.shippingAddress?.city,
-        state: order.shippingAddress?.state,
-        pincode: order.shippingAddress?.pincode,
-        gstin: gstin || order.gstin,
-      }
+      name: order.customerDetails.name,
+      phone: order.customerDetails.phone,
+      email: order.customerDetails.email,
+      address: order.shippingAddress?.address,
+      city: order.shippingAddress?.city,
+      state: order.shippingAddress?.state,
+      pincode: order.shippingAddress?.pincode,
+      gstin: gstin || order.gstin,
+    }
     : {
-        name: posSale.customerName || customerDetails?.name || '',
-        phone: posSale.customerPhone || customerDetails?.phone || '',
-        address: customerDetails?.address || '',
-        city: customerDetails?.city || '',
-        state: customerDetails?.state || '',
-        pincode: customerDetails?.pincode || '',
-        gstin: gstin || posSale.gstin,
-      };
+      name: posSale.customerName || customerDetails?.name || '',
+      phone: posSale.customerPhone || customerDetails?.phone || '',
+      address: customerDetails?.address || '',
+      city: customerDetails?.city || '',
+      state: customerDetails?.state || '',
+      pincode: customerDetails?.pincode || '',
+      gstin: gstin || posSale.gstin,
+    };
 
   const invoice = await Invoice.findOneAndUpdate(
     { invoiceNumber },
@@ -229,11 +234,12 @@ const generateGSTInvoice = async ({ order, posSale, gstin, customerDetails, gene
  */
 const generateStandaloneGSTInvoice = async ({ items, customerDetails, generatedBy }) => {
   const settings = await Settings.getSettings();
-  const invoiceNumber = await generateInvoiceNumber(settings);
-  
+  const customerName = customerDetails?.name || 'customer';
+  const invoiceNumber = await generateInvoiceNumber(settings, customerName);
+
   const customerState = customerDetails?.state || '';
   const businessState = settings.business?.state || '';
-  
+
   const gstRate = 18;
   const isIntra = gstService.isIntraState(businessState, customerState);
 
@@ -246,7 +252,7 @@ const generateStandaloneGSTInvoice = async ({ items, customerDetails, generatedB
     const qty = Number(item.quantity) || 1;
     const rate = Number(item.rate) || 0;
     const taxableValue = qty * rate;
-    
+
     let cgstRate = 0, cgstAmount = 0, sgstRate = 0, sgstAmount = 0, igstRate = 0, igstAmount = 0;
     let totalTax = 0;
 

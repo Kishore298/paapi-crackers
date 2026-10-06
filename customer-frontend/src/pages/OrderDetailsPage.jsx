@@ -169,7 +169,7 @@ const OrderDetailsPage = () => {
             )}
             <div className="flex justify-between text-text-secondary">
               <span>Delivery Charge</span>
-              <span>{order.deliveryCharge === 0 ? 'Free' : formatCurrency(order.deliveryCharge)}</span>
+              <span>{order.deliveryCharge === 0 ? 'Customer to pay' : formatCurrency(order.deliveryCharge)}</span>
             </div>
             {order.gstAmount > 0 && (
               <div className="flex justify-between text-text-secondary text-xs mt-2 border-t border-gray-200 pt-2">

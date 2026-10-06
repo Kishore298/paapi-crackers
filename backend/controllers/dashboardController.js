@@ -35,8 +35,8 @@ exports.getDashboard = async (req, res, next) => {
       Order.find(todayFilter).select('grandTotal gstAmount').lean(),
       Product.countDocuments({ active: true, stock: { $gt: 0, $lte: lowStockThreshold } }),
       Product.countDocuments({ active: true, stock: 0 }),
-      POSSale.find().select('grandTotal gstAmount').lean(),
-      POSSale.find(todayFilter).select('grandTotal gstAmount').lean(),
+      POSSale.find({ status: { $ne: 'Cancelled' } }).select('grandTotal gstAmount').lean(),
+      POSSale.find({ ...todayFilter, status: { $ne: 'Cancelled' } }).select('grandTotal gstAmount').lean(),
     ]);
 
     // Calculate figures
@@ -99,7 +99,7 @@ exports.getChartData = async (req, res, next) => {
     ]);
 
     const posByDate = await POSSale.aggregate([
-      { $match: { createdAt: { $gte: daysAgo } } },
+      { $match: { createdAt: { $gte: daysAgo }, status: { $ne: 'Cancelled' } } },
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },

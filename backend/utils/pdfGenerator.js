@@ -192,7 +192,7 @@ const generateInvoicePDF = (invoice) => {
 
       let nextY = doc.y;
       items.forEach((item, i) => {
-        if (nextY > 650) {
+        if (nextY > 750) {
           doc.addPage();
           nextY = 40;
           doc.rect(40, nextY, 515, 25).fill(bgGray);
@@ -205,7 +205,7 @@ const generateInvoicePDF = (invoice) => {
             doc.text('GST %', col.gst, pthY, { width: 35, align: 'center' });
           }
           doc.text('Qty', col.qty, pthY, { width: 30, align: 'center' });
-          doc.text('Rate', col.rate, pthY, { width: 45, align: 'right' });
+          doc.text('MRP', col.rate, pthY, { width: 45, align: 'right' });
           doc.text('Discount', col.disc, pthY, { width: 50, align: 'right' });
           doc.text('Final Rate', col.final, pthY, { width: 55, align: 'right' });
           doc.text('Total Amount', col.amt, pthY, { width: 70, align: 'right' });
@@ -219,6 +219,12 @@ const generateInvoicePDF = (invoice) => {
       doc.y += 20;
 
       // ---- FOOTER ----
+      const footerRequiredSpace = isGST ? 210 : 170;
+      if (doc.y + footerRequiredSpace > 800) {
+        doc.addPage();
+        doc.y = 40;
+      }
+      
       const footerY = doc.y;
       
       // Totals Box (Stretched)
