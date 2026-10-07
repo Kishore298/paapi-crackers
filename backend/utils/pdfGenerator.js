@@ -71,11 +71,6 @@ const generateInvoicePDF = (invoice) => {
         doc.font('Helvetica-Bold').fillColor(darkGray).text(value, rightX + 90, y, { width: 115, align: 'right' });
       };
 
-      if (invoice.invoiceNumber && !invoice.invoiceNumber.startsWith('ORD-')) {
-        drawMeta('Invoice No:', invoice.invoiceNumber);
-        doc.moveDown(0.2);
-      }
-
       if (invoice.order && invoice.order.orderNumber) {
         drawMeta('Order No:', invoice.order.orderNumber);
         doc.moveDown(0.2);
@@ -85,6 +80,9 @@ const generateInvoicePDF = (invoice) => {
       } else if (invoice.invoiceNumber && invoice.invoiceNumber.startsWith('ORD-')) {
         // Fallback for mock invoices sent via email that just pass the order number as the invoice number
         drawMeta('Order No:', invoice.invoiceNumber);
+        doc.moveDown(0.2);
+      } else if (invoice.invoiceNumber) {
+        drawMeta('Invoice No:', invoice.invoiceNumber);
         doc.moveDown(0.2);
       }
       drawMeta('Invoice Date:', new Date(invoice.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }));
