@@ -171,12 +171,7 @@ const OrderDetailsPage = () => {
               <span>Delivery Charge</span>
               <span>{order.deliveryCharge === 0 ? 'Customer to pay' : formatCurrency(order.deliveryCharge)}</span>
             </div>
-            {order.gstAmount > 0 && (
-              <div className="flex justify-between text-text-secondary text-xs mt-2 border-t border-gray-200 pt-2">
-                <span>Includes GST</span>
-                <span>{formatCurrency(order.gstAmount)}</span>
-              </div>
-            )}
+
             <div className="flex justify-between items-center text-lg font-bold text-text-primary border-t border-gray-200 mt-2 pt-3">
               <span>Grand Total</span>
               <span className="text-primary">{formatCurrency(order.grandTotal)}</span>

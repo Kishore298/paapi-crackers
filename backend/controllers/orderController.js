@@ -29,7 +29,7 @@ const generateOrderNumber = async (customerName = '') => {
   let maxSequence = 0;
 
   if (lastOrder && lastOrder.orderNumber) {
-    const match = lastOrder.orderNumber.match(/-(\d{4,5})$/);
+    const match = lastOrder.orderNumber.match(/(\d{5})$/);
     if (match) {
       maxSequence = parseInt(match[1], 10);
     }

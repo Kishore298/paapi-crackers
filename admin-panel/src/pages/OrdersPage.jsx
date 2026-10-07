@@ -219,8 +219,8 @@ const OrdersPage = () => {
                       ) : (
                         <select
                           className={`text-xs p-1.5 rounded-full border border-border cursor-pointer font-medium ${order.status === 'Processing' ? 'bg-blue-50 text-blue-600' :
-                              order.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
-                                'bg-green-50 text-green-600'
+                            order.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
+                              'bg-green-50 text-green-600'
                             }`}
                           value={order.status}
                           onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
@@ -265,15 +265,15 @@ const OrdersPage = () => {
           <div className="flex justify-between items-center mt-4 p-2">
             <span className="text-sm text-text-secondary">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
-              <button 
-                disabled={page === 1} 
+              <button
+                disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1 bg-white border border-border rounded hover:bg-gray-50 disabled:opacity-50 text-sm font-medium"
               >
                 Previous
               </button>
-              <button 
-                disabled={page === totalPages} 
+              <button
+                disabled={page === totalPages}
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1 bg-white border border-border rounded hover:bg-gray-50 disabled:opacity-50 text-sm font-medium"
               >
@@ -294,10 +294,10 @@ const OrdersPage = () => {
                   Order #{selectedOrder.orderNumber}
                   <select
                     className={`text-sm p-1.5 rounded-full border border-border cursor-pointer font-medium ${selectedOrder.status === 'Pending' ? 'bg-orange-50 text-orange-600' :
-                        selectedOrder.status === 'Processing' ? 'bg-blue-50 text-blue-600' :
-                          selectedOrder.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
-                            selectedOrder.status === 'Delivered' ? 'bg-green-50 text-green-600' :
-                              'bg-red-50 text-red-600'
+                      selectedOrder.status === 'Processing' ? 'bg-blue-50 text-blue-600' :
+                        selectedOrder.status === 'Dispatched' ? 'bg-indigo-50 text-indigo-600' :
+                          selectedOrder.status === 'Delivered' ? 'bg-green-50 text-green-600' :
+                            'bg-red-50 text-red-600'
                       }`}
                     value={selectedOrder.status}
                     onChange={(e) => handleUpdateStatus(selectedOrder._id, e.target.value)}
@@ -417,7 +417,6 @@ const OrdersPage = () => {
                     <div className="w-64 ml-auto space-y-1.5 text-sm">
                       <div className="flex justify-between"><span className="text-text-secondary">Total Amount</span><span>{formatCurrency(selectedOrder.subtotal + (selectedOrder.discount || 0))}</span></div>
                       {selectedOrder.discount > 0 && <div className="flex justify-between text-success"><span>Discount</span><span>-{formatCurrency(selectedOrder.discount)}</span></div>}
-                      {selectedOrder.gstAmount > 0 && <div className="flex justify-between text-xs text-text-secondary pt-1 border-t border-border"><span>Includes GST</span><span>{formatCurrency(selectedOrder.gstAmount)}</span></div>}
                       <div className="flex justify-between font-bold text-base pt-2 border-t border-border mt-2"><span>Final Amount</span><span className="text-primary">{formatCurrency(selectedOrder.grandTotal)}</span></div>
                     </div>
                   </div>

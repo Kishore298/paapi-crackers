@@ -9,6 +9,9 @@ const CustomersPage = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', gstin: '' });
@@ -24,13 +27,18 @@ const CustomersPage = () => {
   const fetchCustomers = React.useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await API.get(`/customers?search=${encodeURIComponent(search)}`);
+      const { data } = await API.get(`/customers?search=${encodeURIComponent(search)}&page=${page}&limit=20`);
       setCustomers(data.data);
+      setTotalPages(data.pagination.pages || 1);
     } catch (error) {
       toast.error('Failed to load customers');
     } finally {
       setLoading(false);
     }
+  }, [search, page]);
+
+  useEffect(() => {
+    setPage(1); // Reset page on search change
   }, [search]);
 
   useEffect(() => {
@@ -38,7 +46,7 @@ const CustomersPage = () => {
       fetchCustomers();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [search, fetchCustomers]);
+  }, [search, page, fetchCustomers]);
 
   const handleViewCustomer = async (id) => {
     try {
@@ -181,10 +189,33 @@ const CustomersPage = () => {
                   </tr>
                 ))}
                 {customers.length === 0 && (
-                  <tr><td colSpan="6" className="text-center py-8 text-text-secondary">No customers found.</td></tr>
+                  <tr><td colSpan="7" className="text-center py-8 text-text-secondary">No customers found.</td></tr>
                 )}
               </tbody>
             </table>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 p-4 border-t border-border">
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1 text-sm border border-border rounded-lg hover:bg-gray-50 disabled:opacity-50 text-text-primary"
+                >
+                  Previous
+                </button>
+                <span className="text-sm text-text-secondary font-medium">
+                  Page {page} of {totalPages}
+                </span>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1 text-sm border border-border rounded-lg hover:bg-gray-50 disabled:opacity-50 text-text-primary"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

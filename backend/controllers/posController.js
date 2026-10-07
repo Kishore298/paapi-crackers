@@ -23,13 +23,13 @@ const generateBillNumber = async (customerName = '') => {
 
   let sequence = 1;
   if (lastSale && lastSale.billNumber) {
-    const match = lastSale.billNumber.match(/-(\d{4,5})$/);
+    const match = lastSale.billNumber.match(/(\d{5})$/);
     if (match) {
       sequence = parseInt(match[1], 10) + 1;
     }
   }
 
-  return `${fullPrefix}${String(sequence).padStart(4, '0')}`;
+  return `${fullPrefix}${String(sequence).padStart(5, '0')}`;
 };
 
 // POST /api/pos/sale
