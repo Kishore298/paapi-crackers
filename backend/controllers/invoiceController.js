@@ -125,7 +125,9 @@ exports.downloadInvoicePDF = async (req, res, next) => {
     const isObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
     const query = isObjectId ? { _id: req.params.id } : { invoiceNumber: req.params.id };
 
-    const invoice = await Invoice.findOne(query);
+    const invoice = await Invoice.findOne(query)
+      .populate('order', 'orderNumber status')
+      .populate('posSale', 'billNumber');
     if (!invoice) {
       return res.status(404).json({ success: false, message: 'Invoice not found.' });
     }

@@ -71,8 +71,22 @@ const generateInvoicePDF = (invoice) => {
         doc.font('Helvetica-Bold').fillColor(darkGray).text(value, rightX + 90, y, { width: 115, align: 'right' });
       };
 
-      drawMeta('Order No:', invoice.invoiceNumber);
-      doc.moveDown(0.2);
+      if (invoice.invoiceNumber && !invoice.invoiceNumber.startsWith('ORD-')) {
+        drawMeta('Invoice No:', invoice.invoiceNumber);
+        doc.moveDown(0.2);
+      }
+
+      if (invoice.order && invoice.order.orderNumber) {
+        drawMeta('Order No:', invoice.order.orderNumber);
+        doc.moveDown(0.2);
+      } else if (invoice.posSale && invoice.posSale.billNumber) {
+        drawMeta('Bill No:', invoice.posSale.billNumber);
+        doc.moveDown(0.2);
+      } else if (invoice.invoiceNumber && invoice.invoiceNumber.startsWith('ORD-')) {
+        // Fallback for mock invoices sent via email that just pass the order number as the invoice number
+        drawMeta('Order No:', invoice.invoiceNumber);
+        doc.moveDown(0.2);
+      }
       drawMeta('Invoice Date:', new Date(invoice.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }));
       doc.moveDown(0.2);
       if (cust.state) drawMeta('Place of Supply:', cust.state);
